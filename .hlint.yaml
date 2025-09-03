@@ -35,6 +35,7 @@
   - -XGeneralizedNewtypeDeriving
   - -XLambdaCase
   - -XMultiParamTypeClasses
+  - -XNoImplicitPrelude
   - -XNoMonomorphismRestriction
   - -XOverloadedStrings
   - -XQuasiQuotes
