@@ -16,7 +16,18 @@ category:            Web
 description: See README
 
 dependencies:
-- base >= 4.7 && < 5
+  - base >= 4.7 && < 5
+  - aeson
+  - bytestring
+  - http-conduit
+  - jose
+  - lens
+  - monad-logger
+  - monad-logger-aeson
+  - monad-time
+  - mtl
+  - text
+  - transformers
 
 ghc-options:
   - -Weverything
