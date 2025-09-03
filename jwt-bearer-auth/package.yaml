@@ -22,12 +22,10 @@ dependencies:
   - http-conduit
   - jose
   - lens
-  - monad-logger
   - monad-logger-aeson
   - monad-time
   - mtl
   - text
-  - transformers
 
 ghc-options:
   - -Weverything
