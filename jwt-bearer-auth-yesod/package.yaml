@@ -1,0 +1,95 @@
+name:                jwt-bearer-auth-yesod
+version:             0.0.0.0
+github:              "freckle/jwt-bearer-auth"
+license:             BSD-3-Clause
+maintainer:          Freckle Education
+
+extra-doc-files:
+  - README.md
+  - CHANGELOG.md
+
+extra-source-files:
+  - package.yaml
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description: JWT Bearer auth as a Yesod plugin
+description: See README
+
+dependencies:
+- base >= 4.7 && < 5
+- jwt-bearer-auth
+
+ghc-options:
+  - -Weverything
+  - -Wno-all-missed-specialisations
+  - -Wno-missed-specialisations
+  - -Wno-missing-exported-signatures # re-enables missing-signatures
+  - -Wno-missing-import-lists
+  - -Wno-missing-local-signatures
+  - -Wno-monomorphism-restriction
+  - -Wno-safe
+  - -Wno-unsafe
+
+when:
+  - condition: "impl(ghc >= 9.8)"
+    ghc-options:
+      - -Wno-missing-role-annotations
+      - -Wno-missing-poly-kind-signatures
+  - condition: "impl(ghc >= 9.2)"
+    ghc-options:
+      - -Wno-missing-kind-signatures
+  - condition: "impl(ghc >= 8.10)"
+    ghc-options:
+      - -Wno-missing-safe-haskell-mode
+      - -Wno-prepositive-qualified-module
+  - condition: "impl(ghc >= 8.8)"
+    ghc-options:
+      - -fwrite-ide-info
+
+default-extensions:
+  - BangPatterns
+  - DataKinds
+  - DeriveAnyClass
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveLift
+  - DeriveTraversable
+  - DerivingStrategies
+  - FlexibleContexts
+  - FlexibleInstances
+  - GADTs
+  - GeneralizedNewtypeDeriving
+  - LambdaCase
+  - MultiParamTypeClasses
+  - NoImplicitPrelude
+  - NoMonomorphismRestriction
+  - OverloadedStrings
+  - RankNTypes
+  - RecordWildCards
+  - ScopedTypeVariables
+  - StandaloneDeriving
+  - TypeApplications
+  - TypeFamilies
+
+library:
+  source-dirs: src
+
+tests:
+  jwt-bearer-auth-yesod-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+      - jwt-bearer-auth-yesod
+      - hspec
+      - hspec-junit-formatter

@@ -1,5 +1,9 @@
 resolver: lts-21.25
 
+packages:
+  - jwt-bearer-auth
+  - jwt-bearer-auth-yesod
+
 extra-deps:
   - hspec-2.11.10
   - hspec-api-2.11.10

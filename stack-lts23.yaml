@@ -1,1 +1,5 @@
 resolver: lts-23.17
+
+packages:
+  - jwt-bearer-auth
+  - jwt-bearer-auth-yesod

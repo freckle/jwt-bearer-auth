@@ -1,5 +1,9 @@
 resolver: lts-20.26
 
+packages:
+  - jwt-bearer-auth
+  - jwt-bearer-auth-yesod
+
 extra-deps:
   - hspec-2.10.0
   - hspec-api-2.10.0

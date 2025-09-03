@@ -1,5 +1,9 @@
 resolver: lts-14.27
 
+packages:
+  - jwt-bearer-auth
+  - jwt-bearer-auth-yesod
+
 extra-deps:
   - call-stack-0.2.0
   - hspec-2.10.0
