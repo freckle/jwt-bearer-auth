@@ -9,7 +9,7 @@ import Control.Monad.Except
 import Crypto.JWT
 import Control.Monad.IO.Class
 import Control.Monad.Time
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BS
 import Data.Aeson
 import Data.Text.Encoding (decodeUtf8)
 import Control.Monad.Logger.Aeson

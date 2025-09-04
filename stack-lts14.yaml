@@ -5,12 +5,13 @@ packages:
   - jwt-bearer-auth-yesod
 
 extra-deps:
+  - aeson-2.2.3.0
   - call-stack-0.2.0
+  - context-0.2.1.1
   - hspec-2.10.0
   - hspec-api-2.10.0
   - hspec-core-2.10.0
   - hspec-discover-2.10.0
   - hspec-junit-formatter-1.1.2.1
   - monad-logger-aeson-0.4.1.4
-  - aeson-2.2.3.0
-  - context-0.2.1.1
+  - these-1.2.1
