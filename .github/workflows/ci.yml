@@ -37,6 +37,11 @@ jobs:
         uses: freckle/stack-action@v5
         env:
           STACK_YAML: ${{ matrix.stack-yaml }}
+      - name: print stack deps tree
+        if: always()
+        run: stack ls dependencies tree
+        env:
+          STACK_YAML: ${{ matrix.stack-yaml }}
 
   lint:
     runs-on: ubuntu-latest
