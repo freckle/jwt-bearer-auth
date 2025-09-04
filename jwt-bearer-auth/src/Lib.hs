@@ -1,5 +1,5 @@
 module Lib
-    ( someFunc
+    ( verifyTokenClaims
     ) where
 
 import Prelude
@@ -16,9 +16,6 @@ import Control.Monad.Logger.Aeson
 import GHC.Stack (HasCallStack)
 import Control.Lens hiding ((.=))
 import Network.HTTP.Simple
-
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
 
 -- this is insecure because of the lack of audience check
 insecureJWTValidationSettings :: JWTValidationSettings
