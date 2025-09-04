@@ -16,11 +16,11 @@ category:            Web
 description: See README
 
 dependencies:
-  - base >= 4.7 && < 5
+  - base >= 4.9 && < 5
   - aeson
   - bytestring
   - http-conduit
-  - jose
+  - jose >= 0.10
   - lens
   - monad-logger-aeson
   - monad-time
