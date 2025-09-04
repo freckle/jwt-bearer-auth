@@ -9,7 +9,8 @@ import Control.Monad.Except
 import Crypto.JWT
 import Control.Monad.IO.Class
 import Control.Monad.Time
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString as BS
 import Data.Aeson
 import Data.Text.Encoding (decodeUtf8)
 import Control.Monad.Logger.Aeson
@@ -29,7 +30,7 @@ verifyTokenClaims
 verifyTokenClaims tokenServerUrl token = do
   joseToAuthError $ do
     logInfo $ "decoding bearer token" :# ["token" .= decodeUtf8 token]
-    jwt <- decodeCompact $ BS.fromStrict token
+    jwt <- decodeCompact $ BSL.fromStrict token
     logInfo $ "decoded bearer token" :# ["jwt" .= jwt]
     verifyClaims @_ @_ @JWTError
       insecureJWTValidationSettings
@@ -53,10 +54,10 @@ joseToAuthError :: Functor m => JOSE e m a -> ExceptT (AuthError e) m a
 joseToAuthError = withExceptT JOSEError . unwrapJOSE
 
 instance
-  (HasKid h, MonadIO m, MonadLogger m)
+  ( HasKid h, MonadIO m, MonadLogger m)
   => VerificationKeyStore m (h p) ClaimsSet TokenServerUrl
   where
-  getVerificationKeys h claims tokenServerUrl = do
+  getVerificationKeys h _claims tokenServerUrl = do
     logInfo $ "Fetching JWKs" :# ["expectedKid" .= (h ^? kid . _Just . param)]
     (WellKnownJWKSet keys) <- fetchJWKs tokenServerUrl
     logInfo $ "Fetched JWKs" :# ["keys" .= keys]

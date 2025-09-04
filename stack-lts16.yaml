@@ -35,7 +35,6 @@ extra-deps:
   - text-iso8601-0.1.1
   - text-short-0.1.6
   - th-abstraction-0.7.1.0
-  - these-1.2.1
   - time-compat-1.9.8
   - uuid-types-1.0.6
   - vector-0.13.2.0
