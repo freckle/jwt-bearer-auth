@@ -92,5 +92,3 @@ tests:
     - -with-rtsopts=-N
     dependencies:
       - jwt-bearer-auth-yesod
-      - hspec
-      - hspec-junit-formatter
