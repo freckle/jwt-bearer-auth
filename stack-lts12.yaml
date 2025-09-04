@@ -14,3 +14,5 @@ extra-deps:
   - tagged-0.8.6
   - time-compat-1.9.2.2
   - assoc-1
+  - base-orphans-0.8.1
+  - vector-algorithms-0.8.0.1
