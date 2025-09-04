@@ -1,4 +1,4 @@
-resolver: nightly-2025-09-04
+resolver: lts-24.8
 
 packages:
   - jwt-bearer-auth
