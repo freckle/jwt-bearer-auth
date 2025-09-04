@@ -13,6 +13,9 @@ extra-deps:
   # - hspec-discover-2.10.0
   # - hspec-junit-formatter-1.1.2.1
   - monad-logger-aeson-0.3.1.0
+  - aeson-1.5.2.0
+  - context-0.2.0.0
+  - unordered-containers-0.2.10.0
   # - random-1.2.1
   # - regex-base-0.94.0.2
   # - regex-tdfa-1.3.2.2
