@@ -20,3 +20,17 @@ extra-deps:
   - unordered-containers-0.2.20
 
   - lens-5.3.5
+
+  - uuid-types-1.0.6
+  - hashable-1.5.0.0
+
+  - assoc-1.1.1
+  - bifunctors-5.6.2
+  - comonad-5.0.9
+  - indexed-traversable-0.1.4
+  - indexed-traversable-instances-0.1.2
+  - profunctors-5.6.3
+  - strict-0.5.1
+  - tagged-0.8.9
+  - th-abstraction-0.7.1.0
+  - vector-0.13.2.0
