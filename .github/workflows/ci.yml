@@ -18,7 +18,7 @@ jobs:
         uses: freckle/stack-action/generate-matrix@v5
         # temporarily use only lts-12, just for less noise
         with:
-          find-options: '-maxdepth 1 -type of -name stack-lts12.yaml'
+          find-options: '-maxdepth 1 -type f -name stack-lts12.yaml'
     outputs:
       stack-yamls: ${{ steps.generate.outputs.stack-yamls }}
 
