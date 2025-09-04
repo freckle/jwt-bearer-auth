@@ -16,3 +16,4 @@ extra-deps:
   - assoc-1
   - base-orphans-0.8.1
   - vector-algorithms-0.8.0.1
+  - jose-0.10
