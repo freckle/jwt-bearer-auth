@@ -1,8 +1,8 @@
-name:                jwt-bearer-auth-yesod
-version:             0.0.0.0
-github:              "freckle/jwt-bearer-auth"
-license:             BSD-3-Clause
-maintainer:          Freckle Education
+name: jwt-bearer-auth-yesod
+version: 0.0.0.0
+github: "freckle/jwt-bearer-auth"
+license: BSD-3-Clause
+maintainer: Freckle Education
 
 extra-doc-files:
   - README.md
@@ -23,7 +23,7 @@ category: Web
 description: See README
 
 dependencies:
-- base >= 4.7 && < 5
+  - base >= 4.7 && < 5
 # - jwt-bearer-auth
 
 ghc-options:
@@ -84,11 +84,11 @@ library:
 
 tests:
   jwt-bearer-auth-yesod-test:
-    main:                Spec.hs
-    source-dirs:         test
+    main: Spec.hs
+    source-dirs: test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies: []
       # - jwt-bearer-auth-yesod
