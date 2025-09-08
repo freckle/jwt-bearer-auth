@@ -1,5 +1,12 @@
-module Lib
+module Web.Auth.Bearer.JWT
     ( verifyTokenClaims
+    , AuthError(..)
+    , JWTError(..)
+    , _JOSEError
+    , AsJWTError(..)
+    , TokenServerUrl(..)
+    , ClaimsSet
+    , HasClaimsSet(..)
     ) where
 
 import Prelude
