@@ -17,15 +17,7 @@ description: See README
 
 dependencies:
   - base >= 4.9 && < 5
-  - aeson
-  - bytestring
-  - http-conduit
-  - jose >= 0.10
   - lens
-  - monad-logger-aeson
-  - monad-time
-  - mtl
-  - text
 
 ghc-options:
   - -Weverything
@@ -82,6 +74,15 @@ default-extensions:
 
 library:
   source-dirs: src
+  dependencies:
+    - aeson
+    - bytestring
+    - http-conduit
+    - jose >= 0.10
+    - monad-logger-aeson
+    - monad-time
+    - mtl
+    - text
 
 tests:
   jwt-bearer-auth-test:
@@ -93,3 +94,4 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - jwt-bearer-auth
+      - hspec

@@ -1,4 +1,16 @@
 import Prelude
 
+import Control.Lens
+import Web.Auth.Bearer.JWT
+import Test.Hspec
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = hspec $ do
+  describe "_JOSEError prism" $
+    do
+      it "extracts the JOSEError if present" $
+        do
+          JOSEError @String "Foo" ^? _JOSEError `shouldBe` Just "Foo"
+      it "returns Nothing if it wasn't a JOSEError" $
+        do
+          NoBearerToken @String ^? _JOSEError `shouldBe` Nothing

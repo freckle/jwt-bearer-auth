@@ -24,7 +24,7 @@ description: See README
 
 dependencies:
 - base >= 4.7 && < 5
-- jwt-bearer-auth
+# - jwt-bearer-auth
 
 ghc-options:
   - -Weverything
@@ -90,5 +90,5 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-      - jwt-bearer-auth-yesod
+    dependencies: []
+      # - jwt-bearer-auth-yesod

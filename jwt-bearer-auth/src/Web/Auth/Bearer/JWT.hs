@@ -71,7 +71,7 @@ instance
   where
   getVerificationKeys h _claims tokenServerUrl = do
     logInfo $ "Fetching JWKs" :# ["expectedKid" .= (h ^? kid . _Just . param)]
-    (WellKnownJWKSet keys) <- fetchJWKs tokenServerUrl
+    WellKnownJWKSet keys <- fetchJWKs tokenServerUrl
     logInfo $ "Fetched JWKs" :# ["keys" .= keys]
     pure $ filter matchesKid keys
    where
