@@ -1,27 +1,28 @@
 module Web.Auth.Bearer.JWT
-    ( verifyTokenClaims
-    , AuthError(..)
-    , JWTError(..)
-    , _JOSEError
-    , AsJWTError(..)
-    , TokenServerUrl(..)
-    , ClaimsSet
-    , HasClaimsSet(..)
-    ) where
+  ( verifyTokenClaims
+  , AuthError (..)
+  , JWTError (..)
+  , _JOSEError
+  , AsJWTError (..)
+  , TokenServerUrl (..)
+  , ClaimsSet
+  , HasClaimsSet (..)
+  ) where
 
 import Prelude
-import GHC.Generics
-import Crypto.JOSE
-import Control.Monad.Except
-import Crypto.JWT
-import Control.Monad.IO.Class
-import Control.Monad.Time
-import qualified Data.ByteString.Lazy as BSL
-import qualified Data.ByteString as BS
-import Data.Aeson
-import Data.Text.Encoding (decodeUtf8)
-import Control.Monad.Logger.Aeson
+
 import Control.Lens hiding ((.=))
+import Control.Monad.Except
+import Control.Monad.IO.Class
+import Control.Monad.Logger.Aeson
+import Control.Monad.Time
+import Crypto.JOSE
+import Crypto.JWT
+import Data.Aeson
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
+import Data.Text.Encoding (decodeUtf8)
+import GHC.Generics
 import Network.HTTP.Simple
 
 -- this is insecure because of the lack of audience check
@@ -47,14 +48,14 @@ data AuthError a = NoBearerToken | JOSEError a
 
 _JOSEError :: Prism (AuthError a) (AuthError b) a b
 _JOSEError = prism JOSEError $ \case
-    NoBearerToken -> Left NoBearerToken
-    JOSEError x -> Right x
+  NoBearerToken -> Left NoBearerToken
+  JOSEError x -> Right x
 
 instance AsJWTError a => AsJWTError (AuthError a) where
-  _JWTError = _JOSEError._JWTError
+  _JWTError = _JOSEError . _JWTError
 
 instance AsError a => AsError (AuthError a) where
-  _Error = _JOSEError._Error
+  _Error = _JOSEError . _Error
 
 newtype TokenServerUrl = TokenServerUrl {unTokenServerUrl :: String}
   deriving stock (Eq, Show)
@@ -66,7 +67,7 @@ newtype WellKnownJWKSet = WellKnownJWKSet
   deriving anyclass (FromJSON)
 
 instance
-  ( HasKid h, MonadIO m, MonadLogger m)
+  (HasKid h, MonadIO m, MonadLogger m)
   => VerificationKeyStore m (h p) ClaimsSet TokenServerUrl
   where
   getVerificationKeys h _claims tokenServerUrl = do
