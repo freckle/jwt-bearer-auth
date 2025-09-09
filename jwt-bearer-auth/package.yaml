@@ -82,6 +82,7 @@ library:
     - monad-logger-aeson
     - monad-time
     - mtl
+    - polling-cache
     - text
 
 tests:
