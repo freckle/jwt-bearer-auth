@@ -84,6 +84,7 @@ library:
     - mtl
     - polling-cache
     - text
+    - unliftio
 
 tests:
   jwt-bearer-auth-test:
