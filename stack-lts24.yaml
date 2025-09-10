@@ -7,4 +7,3 @@ packages:
 extra-deps:
   - git: "https://github.com/derelbenkoenig/polling-cache"
     commit: "ae720c67e1bfe0f3fd0c8d40b006b07c6beedc99"
-
