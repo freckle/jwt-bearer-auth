@@ -1,9 +1,11 @@
-# haskell-library-template
+# jwt-bearer-auth
 
-[![Hackage](https://img.shields.io/hackage/v/haskell-library-template.svg?style=flat)](https://hackage.haskell.org/package/haskell-library-template)
-[![Stackage Nightly](http://stackage.org/package/haskell-library-template/badge/nightly)](http://stackage.org/nightly/package/haskell-library-template)
-[![Stackage LTS](http://stackage.org/package/haskell-library-template/badge/lts)](http://stackage.org/lts/package/haskell-library-template)
-[![CI](https://github.com/freckle/haskell-library-template/actions/workflows/ci.yml/badge.svg)](https://github.com/freckle/haskell-library-template/actions/workflows/ci.yml)
+<!--
+[![Hackage](https://img.shields.io/hackage/v/jwt-bearer-auth.svg?style=flat)](https://hackage.haskell.org/package/jwt-bearer-auth)
+[![Stackage Nightly](http://stackage.org/package/jwt-bearer-auth/badge/nightly)](http://stackage.org/nightly/package/jwt-bearer-auth)
+[![Stackage LTS](http://stackage.org/package/jwt-bearer-auth/badge/lts)](http://stackage.org/lts/package/jwt-bearer-auth)
+[![CI](https://github.com/freckle/jwt-bearer-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/freckle/jwt-bearer-auth/actions/workflows/ci.yml)
+-->
 
 _Synopsis_
 
@@ -48,7 +50,7 @@ If you are working within the freckle org, use [github-vending-machine][ghvm]. O
 
 [ghvm]: https://github.com/freckle/github-vending-machine
 ```sh
-gh repo create --template freckle/haskell-library-template --public freckle/<name>
+gh repo create --template freckle/jwt-bearer-auth --public freckle/<name>
 git clone git@github.com:freckle/<name>
 cd ./<name>
 ```
@@ -57,7 +59,7 @@ cd ./<name>
 
 ```sh
 find -type f -exec \
-  sed -i s/haskell-library-template/my-name/ {} +
+  sed -i s/jwt-bearer-auth/my-name/ {} +
 ```
 
 Edit `package.yaml` as necessary.

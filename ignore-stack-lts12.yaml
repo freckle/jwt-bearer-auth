@@ -1,0 +1,26 @@
+resolver: lts-12.26
+
+packages:
+  - jwt-bearer-auth
+  - jwt-bearer-auth-yesod
+
+extra-deps:
+  - monad-logger-aeson-0.3.1.0
+  - aeson-2.0.1.0
+  - context-0.2.0.1
+  - unordered-containers-0.2.10.0
+  - these-1.1
+  - primitive-0.7.0.1
+  - tagged-0.8.6
+  - time-compat-1.9.6
+  - assoc-1
+  - base-orphans-0.8.1
+  - vector-algorithms-0.8.0.1
+  - jose-0.10
+  - base64-bytestring-1.2.1.0
+  - data-fix-0.3.0
+  - indexed-traversable-0.1.1
+  - scientific-0.3.7.0
+  - semialign-1.2
+  - strict-0.4
+  - witherable-0.4.1
