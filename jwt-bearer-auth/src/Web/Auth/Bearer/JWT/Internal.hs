@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeAbstractions #-}
+
 module Web.Auth.Bearer.JWT.Internal
   ( AsJWTError (..)
   , AuthError (..)
@@ -35,20 +36,22 @@ insecureJWTValidationSettings = defaultJWTValidationSettings (const True)
 
 -- | Verify the cryptographic signature of a JWT, using a provided JWK store.
 verifyTokenClaims
-  :: ( MonadIO m
+  :: ( FromJSON jwt
+     , HasClaimsSet jwt
+     , MonadError (AuthError JWTError) m
+     , MonadIO m
      , MonadLogger m
      , MonadTime m
-     , MonadError (AuthError JWTError) m
      , VerificationKeyStore
-        m
-        (JWSHeader ())
-        jwt
-        store
-     , HasClaimsSet jwt
-     , FromJSON jwt
+         m
+         (JWSHeader ())
+         jwt
+         store
      )
-  => store -- ^ the JWK store
-  -> BS.ByteString -- ^ the token
+  => store
+  -- ^ the JWK store
+  -> BS.ByteString
+  -- ^ the token
   -> m jwt
 verifyTokenClaims @m @store store token = do
   logInfo $ "decoding bearer token" :# ["token" .= decodeUtf8 token]

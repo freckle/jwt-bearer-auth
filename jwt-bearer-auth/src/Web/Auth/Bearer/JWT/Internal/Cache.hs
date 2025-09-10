@@ -1,22 +1,23 @@
 {-# LANGUAGE UndecidableInstances #-}
+
 module Web.Auth.Bearer.JWT.Internal.Cache
   ( newJWKCache
-  , JWKCache(..)
+  , JWKCache (..)
   , killJWKCache
   , withJWKCache
   ) where
 
 import Prelude
 
-import Crypto.JOSE
 import Control.Lens hiding ((.=))
+import Control.Monad.Error.Class
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger.Aeson
-import Control.Monad.Error.Class
+import Crypto.JOSE
 import Data.Cache.Polling
-import Web.Auth.Bearer.JWT.Internal
 import UnliftIO (MonadUnliftIO)
 import UnliftIO.Exception (bracket)
+import Web.Auth.Bearer.JWT.Internal
 
 newtype JWKCache = JWKCache (PollingCache JWKSet)
 
@@ -26,11 +27,12 @@ jwkCacheOptions delayMicros =
 
 newJWKCache
   :: MonadCache m
-  => Int -- ^ delay in microseconds between refreshes
+  => Int
+  -- ^ delay in microseconds between refreshes
   -> TokenServerUrl
   -> m JWKCache
-newJWKCache delayMicros tUrl
-  = JWKCache <$> newPollingCache (jwkCacheOptions delayMicros) (fetchJWKs tUrl)
+newJWKCache delayMicros tUrl =
+  JWKCache <$> newPollingCache (jwkCacheOptions delayMicros) (fetchJWKs tUrl)
 
 killJWKCache
   :: MonadCache m
@@ -40,7 +42,8 @@ killJWKCache (JWKCache c) = stopPolling c
 
 withJWKCache
   :: (MonadCache m, MonadUnliftIO m)
-  => Int -- ^ cache delay microseconds
+  => Int
+  -- ^ cache delay microseconds
   -> TokenServerUrl
   -> (JWKCache -> m a)
   -> m a
@@ -54,11 +57,12 @@ withJWKCache delayMicros serverURL f =
 -- and thus no 'e' hanging around. That should make it safe to
 -- turn on UndecidableInstances to allow this.
 instance
-  (HasKid h, MonadIO m, MonadLogger m, MonadCache m, AsError e, MonadError e m)
+  (AsError e, HasKid h, MonadCache m, MonadError e m, MonadIO m, MonadLogger m)
   => VerificationKeyStore m (h p) ClaimsSet JWKCache
   where
   getVerificationKeys h _claims (JWKCache jwkCache) = do
-    logInfo $ "Fetching JWKs from cache" :# ["expectedKid" .= (h ^? kid . _Just . param)]
+    logInfo
+      $ "Fetching JWKs from cache" :# ["expectedKid" .= (h ^? kid . _Just . param)]
     eKeys :: Either CacheMiss (CacheHit JWKSet) <- cachedValue jwkCache
     case eKeys of
       Left c -> do
