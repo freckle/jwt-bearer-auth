@@ -5,6 +5,7 @@ module Web.Auth.Bearer.JWT.Internal
   , AuthError (..)
   , ClaimsSet
   , HasClaimsSet (..)
+  , JWKSet (..)
   , JWTError (..)
   , TokenServerUrl (..)
   , _JOSEError
@@ -54,6 +55,7 @@ verifyTokenClaims
   -- ^ the token
   -> m jwt
 verifyTokenClaims @m @store store token = do
+  -- TODO don't actually log the token lol
   logInfo $ "decoding bearer token" :# ["token" .= decodeUtf8 token]
   jwt :: jwt <- decodeCompact $ BSL.fromStrict token
   logInfo $ "decoded bearer token" :# ["jwt" .= jwt]

@@ -5,6 +5,7 @@ module Web.Auth.Bearer.JWT.Internal.Cache
   , JWKCache (..)
   , killJWKCache
   , withJWKCache
+  , withJWKCacheFrom
   ) where
 
 import Prelude
@@ -15,7 +16,8 @@ import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger.Aeson
 import Crypto.JOSE
 import Data.Cache.Polling
-import UnliftIO (MonadUnliftIO)
+import Web.Auth.Bearer.JWT.Internal
+import UnliftIO (MonadUnliftIO, MonadIO (..))
 import UnliftIO.Exception (bracket)
 import Web.Auth.Bearer.JWT.Internal
 
@@ -26,29 +28,35 @@ jwkCacheOptions delayMicros =
   basicOptions (DelayForMicroseconds delayMicros) Ignore
 
 newJWKCache
-  :: MonadCache m
-  => Int
-  -- ^ delay in microseconds between refreshes
+  :: MonadIO m
+  => Int -- ^ delay in microseconds between refreshes
   -> TokenServerUrl
   -> m JWKCache
-newJWKCache delayMicros tUrl =
-  JWKCache <$> newPollingCache (jwkCacheOptions delayMicros) (fetchJWKs tUrl)
+newJWKCache delayMicros tUrl
+  = liftIO $ JWKCache <$> newPollingCache (jwkCacheOptions delayMicros) (fetchJWKs tUrl)
 
 killJWKCache
-  :: MonadCache m
+  :: MonadIO m
   => JWKCache
   -> m ()
-killJWKCache (JWKCache c) = stopPolling c
+killJWKCache (JWKCache c) = liftIO $ stopPolling c
 
 withJWKCache
-  :: (MonadCache m, MonadUnliftIO m)
+  :: MonadUnliftIO m
   => Int
   -- ^ cache delay microseconds
   -> TokenServerUrl
   -> (JWKCache -> m a)
   -> m a
 withJWKCache delayMicros serverURL f =
-  bracket (newJWKCache delayMicros serverURL) killJWKCache f
+  withJWKCacheFrom (newJWKCache delayMicros serverURL) f
+
+withJWKCacheFrom
+  :: MonadUnliftIO m
+  => m JWKCache
+  -> (JWKCache -> m a)
+  -> m a
+withJWKCacheFrom mJWKCache k = bracket mJWKCache killJWKCache k
 
 -- the presence of 'e' in the constraints but not in the instance head requires
 -- UndecidableInstances. But 'MonadError' is injective '(m -> e)', so it could
@@ -57,13 +65,12 @@ withJWKCache delayMicros serverURL f =
 -- and thus no 'e' hanging around. That should make it safe to
 -- turn on UndecidableInstances to allow this.
 instance
-  (AsError e, HasKid h, MonadCache m, MonadError e m, MonadIO m, MonadLogger m)
+  (AsError e, HasKid h, MonadError e m, MonadIO m, MonadLogger m)
   => VerificationKeyStore m (h p) ClaimsSet JWKCache
   where
   getVerificationKeys h _claims (JWKCache jwkCache) = do
-    logInfo
-      $ "Fetching JWKs from cache" :# ["expectedKid" .= (h ^? kid . _Just . param)]
-    eKeys :: Either CacheMiss (CacheHit JWKSet) <- cachedValue jwkCache
+    logInfo $ "Fetching JWKs from cache" :# ["expectedKid" .= (h ^? kid . _Just . param)]
+    eKeys :: Either CacheMiss (CacheHit JWKSet) <- liftIO $ cachedValue jwkCache
     case eKeys of
       Left c -> do
         logError $ "JWK not found in cache" :# ["cacheMiss" .= show c]
