@@ -1,6 +1,7 @@
 module Web.Auth.Bearer.JWT.Internal.CacheSpec (spec) where
 
 import Prelude
+
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Web.Auth.Bearer.JWT.Internal.Cache

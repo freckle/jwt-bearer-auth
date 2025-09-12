@@ -16,8 +16,7 @@ import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger.Aeson
 import Crypto.JOSE
 import Data.Cache.Polling
-import Web.Auth.Bearer.JWT.Internal
-import UnliftIO (MonadUnliftIO, MonadIO (..))
+import UnliftIO (MonadIO (..), MonadUnliftIO)
 import UnliftIO.Exception (bracket)
 import Web.Auth.Bearer.JWT.Internal
 
@@ -29,11 +28,13 @@ jwkCacheOptions delayMicros =
 
 newJWKCache
   :: MonadIO m
-  => Int -- ^ delay in microseconds between refreshes
+  => Int
+  -- ^ delay in microseconds between refreshes
   -> TokenServerUrl
   -> m JWKCache
-newJWKCache delayMicros tUrl
-  = liftIO $ JWKCache <$> newPollingCache (jwkCacheOptions delayMicros) (fetchJWKs tUrl)
+newJWKCache delayMicros tUrl =
+  liftIO
+    $ JWKCache <$> newPollingCache (jwkCacheOptions delayMicros) (fetchJWKs tUrl)
 
 killJWKCache
   :: MonadIO m
@@ -69,7 +70,8 @@ instance
   => VerificationKeyStore m (h p) ClaimsSet JWKCache
   where
   getVerificationKeys h _claims (JWKCache jwkCache) = do
-    logInfo $ "Fetching JWKs from cache" :# ["expectedKid" .= (h ^? kid . _Just . param)]
+    logInfo
+      $ "Fetching JWKs from cache" :# ["expectedKid" .= (h ^? kid . _Just . param)]
     eKeys :: Either CacheMiss (CacheHit JWKSet) <- liftIO $ cachedValue jwkCache
     case eKeys of
       Left c -> do
