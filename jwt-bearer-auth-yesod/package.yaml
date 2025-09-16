@@ -24,11 +24,6 @@ description: See README
 
 dependencies:
   - base >= 4.7 && < 5
-  - jwt-bearer-auth
-  - yesod-core
-  - http-types
-  - wai
-  - bytestring
 
 ghc-options:
   - -Weverything
@@ -85,6 +80,13 @@ default-extensions:
 
 library:
   source-dirs: src
+  # dependencies not needed for tests NOW but probably will be
+  dependencies:
+    - bytestring
+    - http-types
+    - jwt-bearer-auth
+    - wai
+    - yesod-core
 
 tests:
   jwt-bearer-auth-yesod-test:
