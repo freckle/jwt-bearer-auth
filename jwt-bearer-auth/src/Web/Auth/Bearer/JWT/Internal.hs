@@ -37,8 +37,8 @@ insecureJWTValidationSettings = defaultJWTValidationSettings (const True)
 
 -- | Verify the cryptographic signature of a JWT, using a provided JWK store.
 verifyTokenClaims
-  :: forall store jwt m.
-     ( FromJSON jwt
+  :: forall store jwt m
+   . ( FromJSON jwt
      , HasClaimsSet jwt
      , MonadError (AuthError JWTError) m
      , MonadLogger m
@@ -65,7 +65,7 @@ verifyTokenClaims store token = do
     jwt
 
 data AuthError a = NoBearerToken | JOSEError a
-  deriving stock (Generic, Show, Eq)
+  deriving stock (Eq, Generic, Show)
 
 _JOSEError :: Prism (AuthError a) (AuthError b) a b
 _JOSEError = prism JOSEError $ \case
