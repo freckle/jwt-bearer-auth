@@ -9,7 +9,7 @@ module Network.Wai.Lens
   ) where
 
 import Prelude
-import qualified Data.ByteString as B
+import qualified Data.ByteString as BS
 import Data.Functor.Const
 import Data.Functor.Identity
 import Network.Wai
@@ -36,7 +36,7 @@ requestHeadersL f req =
 atHeaderName
   :: forall f. Functor f
   => H.HeaderName
-  -> (Maybe B.ByteString -> f (Maybe B.ByteString))
+  -> (Maybe BS.ByteString -> f (Maybe BS.ByteString))
   -> [H.Header]
   -> f [H.Header]
 atHeaderName = atKey
