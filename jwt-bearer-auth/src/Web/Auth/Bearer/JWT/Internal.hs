@@ -11,8 +11,6 @@ module Web.Auth.Bearer.JWT.Internal
   , _JOSEError
   , verifyTokenClaims
   , fetchJWKs
-  , ExceptT
-  , runExceptT
   ) where
 
 import Prelude

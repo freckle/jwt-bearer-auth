@@ -84,6 +84,7 @@ library:
   dependencies:
     - aeson
     - http-conduit
+    - mtl
 
 tests:
   jwt-bearer-auth-test:
