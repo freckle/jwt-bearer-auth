@@ -5,6 +5,9 @@ module Network.Wai.Lens
   ( requestMethodL
   , requestHeadersL
   , atHeaderName
+  , view
+  , set
+  , over
   ) where
 
 import Prelude
