@@ -31,7 +31,7 @@ import Network.HTTP.Simple
 
 -- this is insecure because of the lack of audience check
 insecureJWTValidationSettings :: JWTValidationSettings
-insecureJWTValidationSettings = defaultJWTValidationSettings (const True)
+insecureJWTValidationSettings = defaultJWTValidationSettings $ const True
 
 -- | Verify the cryptographic signature of a JWT, using a provided JWK store.
 verifyTokenClaims
@@ -100,5 +100,5 @@ fetchJWKs
   -- ^ JWKs endpoint URL
   -> m JWKSet
 fetchJWKs tokenServerUrl = do
-  let request = parseRequest_ (unTokenServerUrl tokenServerUrl <> "/.well-known/jwks.json")
+  let request = parseRequest_ $ unTokenServerUrl tokenServerUrl <> "/.well-known/jwks.json"
   getResponseBody <$> httpJSON request
