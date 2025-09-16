@@ -84,9 +84,12 @@ library:
   dependencies:
     - bytestring
     - http-types
-    # - jwt-bearer-auth
+    - jose
+    - jwt-bearer-auth
+    - lens
+    - mtl
     - wai
-    # - yesod-core
+    - yesod-core
 
 tests:
   jwt-bearer-auth-yesod-test:

@@ -1,42 +1,26 @@
 -- |
--- This module is incomplete, but provides a couple of lenses to inspect a
--- WAI request.
+-- This module provides lenses to inspect a WAI request and extract bearer tokens.
 module Network.Wai.Lens
   ( requestMethodL
   , requestHeadersL
   , atHeaderName
-  , view
-  , set
-  , over
+  , authorizationHeaderL
+  , bearerTokenP
   ) where
 
 import Prelude
 
+import Control.Lens
 import qualified Data.ByteString as BS
-import Data.Functor.Const
-import Data.Functor.Identity
+import qualified Data.ByteString.Char8 as BS
 import qualified Network.HTTP.Types as H
 import Network.Wai
 
-requestMethodL
-  :: forall f
-   . Functor f
-  => (H.Method -> f H.Method)
-  -> Request
-  -> f Request
-requestMethodL f req =
-  let fMethod = f (requestMethod req)
-  in  fmap (\m -> req {requestMethod = m}) fMethod
+requestMethodL :: Lens' Request H.Method
+requestMethodL = lens requestMethod (\req method -> req {requestMethod = method})
 
-requestHeadersL
-  :: forall f
-   . Functor f
-  => ([H.Header] -> f [H.Header])
-  -> Request
-  -> f Request
-requestHeadersL f req =
-  let fHeaders = f (requestHeaders req)
-  in  fmap (\h -> req {requestHeaders = h}) fHeaders
+requestHeadersL :: Lens' Request [H.Header]
+requestHeadersL = lens requestHeaders (\req headers -> req {requestHeaders = headers})
 
 atHeaderName
   :: forall f
@@ -64,11 +48,26 @@ atKey k f assocs = go assocs id
   update g xs Nothing = g xs
   update g xs (Just v) = g ((k, v) : xs)
 
-view :: ((a -> Const a b) -> s -> Const a t) -> s -> a
-view l = getConst . l Const
+-- | Lens to access the Authorization header from a WAI request
+-- This is composed from requestHeadersL and atHeaderName
+authorizationHeaderL
+  :: forall f
+   . Functor f
+  => (Maybe BS.ByteString -> f (Maybe BS.ByteString))
+  -> Request
+  -> f Request
+authorizationHeaderL = requestHeadersL . atHeaderName "authorization"
 
-set :: ((a -> Identity b) -> s -> Identity t) -> b -> s -> t
-set l b = over l (const b)
+-- | Prism to extract the bearer token from an Authorization header value
+-- This assumes the ByteString is the full Authorization header value
+bearerTokenP :: Prism' BS.ByteString BS.ByteString
+bearerTokenP = prism setBearerToken extractBearerToken
+ where
+  extractBearerToken :: BS.ByteString -> Either BS.ByteString BS.ByteString
+  extractBearerToken header = case BS.words header of
+    ["Bearer", token] -> Right token
+    _ -> Left header
 
-over :: ((a -> Identity b) -> s -> Identity t) -> (a -> b) -> s -> t
-over l f s = runIdentity $ l (Identity . f) s
+  setBearerToken :: BS.ByteString -> BS.ByteString
+  setBearerToken token = "Bearer " `BS.append` token
+
