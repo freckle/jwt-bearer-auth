@@ -22,7 +22,6 @@ dependencies:
   - lens
   - monad-logger-aeson
   - monad-time
-  - mtl
   - polling-cache
   - text
   - unliftio
