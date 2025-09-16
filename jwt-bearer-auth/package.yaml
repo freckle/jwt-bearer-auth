@@ -17,13 +17,15 @@ description: See README
 
 dependencies:
   - base >= 4.9 && < 5
-  - polling-cache
+  - bytestring
+  - jose >= 0.12
   - lens
-  - jose >= 0.10
-  - unliftio
-  - text
-  - mtl
+  - monad-logger-aeson
   - monad-time
+  - mtl
+  - polling-cache
+  - text
+  - unliftio
 
 ghc-options:
   - -Weverything
@@ -82,9 +84,7 @@ library:
   source-dirs: src
   dependencies:
     - aeson
-    - bytestring
     - http-conduit
-    - monad-logger-aeson
 
 tests:
   jwt-bearer-auth-test:
@@ -95,7 +95,7 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      - jwt-bearer-auth
       - hspec
+      - jwt-bearer-auth
       - QuickCheck
       - time

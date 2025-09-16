@@ -24,7 +24,11 @@ description: See README
 
 dependencies:
   - base >= 4.7 && < 5
-# - jwt-bearer-auth
+  - jwt-bearer-auth
+  - yesod-core
+  - http-types
+  - wai
+  - bytestring
 
 ghc-options:
   - -Weverything

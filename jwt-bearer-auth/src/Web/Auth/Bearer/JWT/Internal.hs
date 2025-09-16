@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeAbstractions #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Web.Auth.Bearer.JWT.Internal
   ( AsJWTError (..)
@@ -37,15 +37,15 @@ insecureJWTValidationSettings = defaultJWTValidationSettings (const True)
 
 -- | Verify the cryptographic signature of a JWT, using a provided JWK store.
 verifyTokenClaims
-  :: ( FromJSON jwt
+  :: forall store jwt m.
+     ( FromJSON jwt
      , HasClaimsSet jwt
      , MonadError (AuthError JWTError) m
-     , MonadIO m
      , MonadLogger m
      , MonadTime m
      , VerificationKeyStore
          m
-         (JWSHeader ())
+         (JWSHeader RequiredProtection)
          jwt
          store
      )
@@ -54,22 +54,18 @@ verifyTokenClaims
   -> BS.ByteString
   -- ^ the token
   -> m jwt
-verifyTokenClaims @m @store store token = do
+verifyTokenClaims store token = do
   -- TODO don't actually log the token lol
   logInfo $ "decoding bearer token" :# ["token" .= decodeUtf8 token]
-  jwt :: jwt <- decodeCompact $ BSL.fromStrict token
+  jwt :: SignedJWTWithHeader JWSHeader <- decodeCompact $ BSL.fromStrict token
   logInfo $ "decoded bearer token" :# ["jwt" .= jwt]
   verifyJWT
-    @m
-    @JWTValidationSettings
-    @(AuthError JWTError)
-    @store
     insecureJWTValidationSettings
     store
     jwt
 
 data AuthError a = NoBearerToken | JOSEError a
-  deriving stock (Generic, Show)
+  deriving stock (Generic, Show, Eq)
 
 _JOSEError :: Prism (AuthError a) (AuthError b) a b
 _JOSEError = prism JOSEError $ \case

@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeAbstractions #-}
-
 module Web.Auth.Bearer.JWT.Test
   ( testJWKCache
   , pureJWKCache

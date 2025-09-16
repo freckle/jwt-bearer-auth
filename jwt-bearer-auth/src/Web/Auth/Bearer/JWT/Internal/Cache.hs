@@ -67,7 +67,7 @@ withJWKCacheFrom mJWKCache k = bracket mJWKCache killJWKCache k
 -- turn on UndecidableInstances to allow this.
 instance
   (AsError e, HasKid h, MonadError e m, MonadIO m, MonadLogger m)
-  => VerificationKeyStore m (h p) ClaimsSet JWKCache
+  => VerificationKeyStore m (h p) payload JWKCache
   where
   getVerificationKeys h _claims (JWKCache jwkCache) = do
     logInfo
@@ -75,7 +75,7 @@ instance
     eKeys :: Either CacheMiss (CacheHit JWKSet) <- liftIO $ cachedValue jwkCache
     case eKeys of
       Left c -> do
-        logError $ "JWK not found in cache" :# ["cacheMiss" .= show c]
+        logError $ "No JWK(s) found in cache" :# ["cacheMiss" .= show c]
         throwError $ _Error # NoUsableKeys
       Right (JWKSet keys, _) -> do
         logInfo $ "Fetched JWKs" :# ["keys" .= keys]
