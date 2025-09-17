@@ -4,6 +4,8 @@
 module Web.Auth.Bearer.JWT.Internal.Cache
   ( newJWKCache
   , JWKCache (..)
+  , JWKCacheError (..)
+  , AsJWKCacheError (..)
   , killJWKCache
   , withJWKCache
   , withJWKCacheFrom
@@ -92,6 +94,7 @@ instance
     matchesKid key = h ^? kid . _Just . param == key ^. jwkKid
 
 data JWKCacheError a = NoKeysInCache | WrapJWKCacheError a
+  deriving stock (Eq, Show)
 
 class AsJWKCacheError s where
   _NoKeysInCache :: Prism' s ()
@@ -108,11 +111,9 @@ instance AsBearerAuthError a => AsBearerAuthError (JWKCacheError a) where
   _NoBearerToken = _WrapJWKCacheError . _NoBearerToken
 
 _WrapJWKCacheError :: Prism (JWKCacheError a) (JWKCacheError b) a b
-_WrapJWKCacheError = prism WrapJWKCacheError destruct
- where
-  destruct :: JWKCacheError a -> Either (JWKCacheError b) a
-  destruct NoKeysInCache = Left NoKeysInCache
-  destruct (WrapJWKCacheError a) = Right a
+_WrapJWKCacheError = prism WrapJWKCacheError $ \case
+  NoKeysInCache -> Left NoKeysInCache
+  WrapJWKCacheError a -> Right a
 
 instance AsError a => AsError (JWKCacheError a) where
   _Error = _WrapJWKCacheError . _Error
