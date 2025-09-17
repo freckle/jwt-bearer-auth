@@ -87,8 +87,10 @@ library:
     - jose
     - jwt-bearer-auth
     - lens
+    - monad-time
     - mtl
     - wai
+    - wai-extra
     - yesod-core
 
 tests:

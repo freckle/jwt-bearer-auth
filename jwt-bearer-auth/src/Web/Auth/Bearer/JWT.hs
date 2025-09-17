@@ -1,11 +1,12 @@
 module Web.Auth.Bearer.JWT
   ( AsJWTError (..)
-  , AuthError (..)
+  , BearerAuthError (..)
+  , AsBearerAuthError (..)
   , ClaimsSet
   , HasClaimsSet (..)
   , JWTError (..)
   , TokenServerUrl (..)
-  , _JOSEError
+  , _WrapBearerAuthError
   , verifyTokenClaims
   ) where
 

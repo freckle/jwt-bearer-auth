@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Web.Auth.Bearer.JWT.Internal.Cache
@@ -12,6 +13,7 @@ import Prelude
 
 import Control.Lens hiding ((.=))
 import Control.Monad.Error.Class
+import Control.Monad.Error.Lens (throwing)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger.Aeson
 import Crypto.JOSE
@@ -66,7 +68,12 @@ withJWKCacheFrom mJWKCache k = bracket mJWKCache killJWKCache k
 -- and thus no 'e' hanging around. That should make it safe to
 -- turn on UndecidableInstances to allow this.
 instance
-  (AsError e, HasKid h, MonadError e m, MonadIO m, MonadLogger m)
+  ( AsJWKCacheError e
+  , HasKid h
+  , MonadError e m
+  , MonadIO m
+  , MonadLogger m
+  )
   => VerificationKeyStore m (h p) payload JWKCache
   where
   getVerificationKeys h _claims (JWKCache jwkCache) = do
@@ -76,10 +83,39 @@ instance
     case eKeys of
       Left c -> do
         logError $ "No JWK(s) found in cache" :# ["cacheMiss" .= show c]
-        throwError $ _Error # NoUsableKeys
+        throwing _NoKeysInCache ()
       Right (JWKSet keys, _) -> do
         logInfo $ "Fetched JWKs" :# ["keys" .= keys]
         pure $ filter matchesKid keys
    where
     matchesKid :: JWK -> Bool
     matchesKid key = h ^? kid . _Just . param == key ^. jwkKid
+
+data JWKCacheError a = NoKeysInCache | WrapJWKCacheError a
+
+class AsJWKCacheError s where
+  _NoKeysInCache :: Prism' s ()
+
+instance AsJWKCacheError (JWKCacheError a) where
+  _NoKeysInCache = prism (const NoKeysInCache) $ \case
+    NoKeysInCache -> Right ()
+    x -> Left x
+
+instance AsJWKCacheError a => AsJWKCacheError (BearerAuthError a) where
+  _NoKeysInCache = _WrapBearerAuthError . _NoKeysInCache
+
+instance AsBearerAuthError a => AsBearerAuthError (JWKCacheError a) where
+  _NoBearerToken = _WrapJWKCacheError . _NoBearerToken
+
+_WrapJWKCacheError :: Prism (JWKCacheError a) (JWKCacheError b) a b
+_WrapJWKCacheError = prism WrapJWKCacheError destruct
+ where
+  destruct :: JWKCacheError a -> Either (JWKCacheError b) a
+  destruct NoKeysInCache = Left NoKeysInCache
+  destruct (WrapJWKCacheError a) = Right a
+
+instance AsError a => AsError (JWKCacheError a) where
+  _Error = _WrapJWKCacheError . _Error
+
+instance AsJWTError a => AsJWTError (JWKCacheError a) where
+  _JWTError = _WrapJWKCacheError . _JWTError

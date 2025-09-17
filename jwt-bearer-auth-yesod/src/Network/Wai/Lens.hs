@@ -12,9 +12,9 @@ import Prelude
 
 import Control.Lens
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BS
 import qualified Network.HTTP.Types as H
 import Network.Wai
+import Network.Wai.Middleware.HttpAuth (extractBearerAuth)
 
 requestMethodL :: Lens' Request H.Method
 requestMethodL = lens requestMethod (\req method -> req {requestMethod = method})
@@ -61,13 +61,4 @@ authorizationHeaderL = requestHeadersL . atHeaderName "authorization"
 -- | Prism to extract the bearer token from an Authorization header value
 -- This assumes the ByteString is the full Authorization header value
 bearerTokenP :: Prism' BS.ByteString BS.ByteString
-bearerTokenP = prism setBearerToken extractBearerToken
- where
-  extractBearerToken :: BS.ByteString -> Either BS.ByteString BS.ByteString
-  extractBearerToken header = case BS.words header of
-    ["Bearer", token] -> Right token
-    _ -> Left header
-
-  setBearerToken :: BS.ByteString -> BS.ByteString
-  setBearerToken token = "Bearer " `BS.append` token
-
+bearerTokenP = prism' (BS.append "Bearer ") extractBearerAuth
