@@ -83,6 +83,7 @@ library:
   # dependencies not needed for tests NOW but probably will be
   dependencies:
     - bytestring
+    - exceptions
     - http-types
     - jose
     - jwt-bearer-auth

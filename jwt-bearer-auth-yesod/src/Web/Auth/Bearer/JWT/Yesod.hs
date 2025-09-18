@@ -6,11 +6,16 @@
 -- This module provides JWT Bearer authentication for Yesod applications.
 module Web.Auth.Bearer.JWT.Yesod
   ( isAuthorizedJWT
+  , isAuthorizedJWKCache
+  , handleCacheErrors
+  , handleDefaultErrors
   ) where
 
 import Prelude
 
 import Control.Lens
+import Control.Monad (when)
+import Control.Monad.Catch (throwM)
 import Control.Monad.Error.Lens (throwing_)
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (ReaderT (..))
@@ -22,6 +27,7 @@ import Crypto.JOSE
   )
 import Network.Wai.Lens
 import Web.Auth.Bearer.JWT
+import Web.Auth.Bearer.JWT.Cache
 import Web.Auth.Bearer.JWT.Yesod.Lens
 import Yesod.Core
 import Yesod.Core.Types (HandlerData, HandlerFor (..))
@@ -60,6 +66,41 @@ isAuthorizedJWT authFunc route isWrite = do
             (preview (authorizationHeaderL . _Just . bearerTokenP) req)
         )
   authFunc eJWT route isWrite
+
+handleCacheErrors
+  :: ( AsBearerAuthError e
+     , AsJWKCacheError e
+     )
+  => e -> a -> b -> HandlerFor site AuthResult
+handleCacheErrors e a b =
+  do
+    when (has _NoKeysInCache e) $ throwM NoKeysInCacheException
+    handleDefaultErrors e a b
+
+handleDefaultErrors
+  :: AsBearerAuthError e
+  => e -> a -> b -> HandlerFor site AuthResult
+handleDefaultErrors e _ _ =
+  if has _NoBearerToken e
+    then pure AuthenticationRequired
+    else pure $ Unauthorized "no valid token"
+
+type AuthError = JWKCacheError (BearerAuthError JWTError)
+
+isAuthorizedJWKCache
+  :: forall jwtType site
+   . ( FromJSON jwtType
+     , HasClaimsSet jwtType
+     , HasJWKStore JWKCache site
+     )
+  => (jwtType -> Route site -> Bool -> HandlerFor site AuthResult)
+  -- ^ Authorization function that handles JWT verification result
+  -> Route site
+  -> Bool
+  -- ^ Is this a write request?
+  -> HandlerFor site AuthResult
+isAuthorizedJWKCache f =
+  isAuthorizedJWT @AuthError @JWKCache @jwtType @site (either handleCacheErrors f)
 
 -- | orphan instance to make runExceptT work.
 --   if '(@HandlerFor@ site)' was a monad transformer, then it would
