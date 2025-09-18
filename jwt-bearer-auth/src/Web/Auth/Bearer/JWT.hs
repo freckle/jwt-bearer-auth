@@ -1,5 +1,6 @@
 module Web.Auth.Bearer.JWT
   ( AsJWTError (..)
+  , AsError (..)
   , BearerAuthError (..)
   , AsBearerAuthError (..)
   , ClaimsSet

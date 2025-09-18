@@ -28,6 +28,7 @@ import Crypto.JWT
 import Data.Aeson (FromJSON)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import Data.String (IsString)
 import Data.Text.Encoding (decodeUtf8)
 import GHC.Generics
 import Network.HTTP.Simple
@@ -91,6 +92,7 @@ instance AsError a => AsError (BearerAuthError a) where
 
 newtype TokenServerUrl = TokenServerUrl {unTokenServerUrl :: String}
   deriving stock (Eq, Show)
+  deriving newtype (IsString)
 
 instance
   (HasKid h, MonadIO m, MonadLogger m)
