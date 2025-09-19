@@ -5,8 +5,9 @@
 -- |
 -- This module provides JWT Bearer authentication for Yesod applications.
 module Web.Auth.Bearer.JWT.Yesod
-  ( isAuthorizedJWT
+  ( authorizeWithJWT
   , isAuthorizedJWKCache
+  , isAuthorizedJWKDefault
   , handleCacheErrors
   , handleDefaultErrors
   ) where
@@ -35,7 +36,7 @@ import Yesod.Core.Types.Lens
 
 -- | JWT-based authorization for Yesod applications.
 -- Extracts bearer token from request, verifies it using the app's JWK store.
-isAuthorizedJWT
+authorizeWithJWT
   :: forall e store jwtType site
    . ( AsBearerAuthError e
      , AsError e
@@ -55,7 +56,7 @@ isAuthorizedJWT
   -> Bool
   -- ^ Is this a write request?
   -> HandlerFor site AuthResult
-isAuthorizedJWT authFunc route isWrite = do
+authorizeWithJWT authFunc route isWrite = do
   jwkStore <- view (handlerJWKStoreL @store)
   req <- view (handlerRequestL . reqWaiRequestL)
   eJWT <-
@@ -85,7 +86,8 @@ handleDefaultErrors e _ _ =
     then pure AuthenticationRequired
     else pure $ Unauthorized "no valid token"
 
-type AuthError = JWKCacheError (BearerAuthError JWTError)
+type AuthError = BearerAuthError JWTError
+type CacheAuthError = JWKCacheError AuthError
 
 isAuthorizedJWKCache
   :: forall jwtType site
@@ -100,7 +102,29 @@ isAuthorizedJWKCache
   -- ^ Is this a write request?
   -> HandlerFor site AuthResult
 isAuthorizedJWKCache f =
-  isAuthorizedJWT @AuthError @JWKCache @jwtType @site (either handleCacheErrors f)
+  authorizeWithJWT @CacheAuthError @JWKCache @jwtType @site
+    (either handleCacheErrors f)
+
+isAuthorizedJWKDefault
+  :: forall jwtType store site
+   . ( FromJSON jwtType
+     , HasClaimsSet jwtType
+     , HasJWKStore store site
+     , VerificationKeyStore
+         (ExceptT AuthError (HandlerFor site))
+         (JWSHeader RequiredProtection)
+         jwtType
+         store
+     )
+  => (jwtType -> Route site -> Bool -> HandlerFor site AuthResult)
+  -- ^ Authorization function that handles JWT verification result
+  -> Route site
+  -> Bool
+  -- ^ Is this a write request?
+  -> HandlerFor site AuthResult
+isAuthorizedJWKDefault f =
+  authorizeWithJWT @AuthError @store @jwtType @site
+    (either handleDefaultErrors f)
 
 -- | orphan instance to make runExceptT work.
 --   if '(@HandlerFor@ site)' was a monad transformer, then it would
