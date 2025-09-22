@@ -50,13 +50,10 @@ authorizeWithJWT
          jwtType
          store
      )
-  => (Either e jwtType -> Route site -> Bool -> HandlerFor site AuthResult)
+  => (Either e jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
-  -> Route site
-  -> Bool
-  -- ^ Is this a write request?
   -> HandlerFor site AuthResult
-authorizeWithJWT authFunc route isWrite = do
+authorizeWithJWT authFunc = do
   jwkStore <- view (handlerJWKStoreL @store)
   req <- view (handlerRequestL . reqWaiRequestL)
   eJWT <-
@@ -66,22 +63,22 @@ authorizeWithJWT authFunc route isWrite = do
             (verifyTokenClaims jwkStore)
             (preview (authorizationHeaderL . _Just . bearerTokenP) req)
         )
-  authFunc eJWT route isWrite
+  authFunc eJWT
 
 handleCacheErrors
   :: ( AsBearerAuthError e
      , AsJWKCacheError e
      )
-  => e -> a -> b -> HandlerFor site AuthResult
-handleCacheErrors e a b =
+  => e -> HandlerFor site AuthResult
+handleCacheErrors e =
   do
     when (has _NoKeysInCache e) $ throwM NoKeysInCacheException
-    handleDefaultErrors e a b
+    handleDefaultErrors e
 
 handleDefaultErrors
   :: AsBearerAuthError e
-  => e -> a -> b -> HandlerFor site AuthResult
-handleDefaultErrors e _ _ =
+  => e -> HandlerFor site AuthResult
+handleDefaultErrors e =
   if has _NoBearerToken e
     then pure AuthenticationRequired
     else pure $ Unauthorized "no valid token"
@@ -95,11 +92,8 @@ isAuthorizedJWKCache
      , HasClaimsSet jwtType
      , HasJWKStore JWKCache site
      )
-  => (jwtType -> Route site -> Bool -> HandlerFor site AuthResult)
+  => (jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
-  -> Route site
-  -> Bool
-  -- ^ Is this a write request?
   -> HandlerFor site AuthResult
 isAuthorizedJWKCache f =
   authorizeWithJWT @CacheAuthError @JWKCache @jwtType @site
@@ -116,11 +110,8 @@ isAuthorizedJWKDefault
          jwtType
          store
      )
-  => (jwtType -> Route site -> Bool -> HandlerFor site AuthResult)
+  => (jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
-  -> Route site
-  -> Bool
-  -- ^ Is this a write request?
   -> HandlerFor site AuthResult
 isAuthorizedJWKDefault f =
   authorizeWithJWT @AuthError @store @jwtType @site
