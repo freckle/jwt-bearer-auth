@@ -83,10 +83,16 @@ library:
   # dependencies not needed for tests NOW but probably will be
   dependencies:
     - bytestring
+    - exceptions
     - http-types
-    # - jwt-bearer-auth
+    - jose
+    - jwt-bearer-auth
+    - lens
+    - monad-time
+    - mtl
     - wai
-    # - yesod-core
+    - wai-extra
+    - yesod-core
 
 tests:
   jwt-bearer-auth-yesod-test:

@@ -2,13 +2,16 @@
 
 module Web.Auth.Bearer.JWT.Internal
   ( AsJWTError (..)
-  , AuthError (..)
+  , AsError (..)
+  , BearerAuthError (..)
+  , AsBearerAuthError (..)
   , ClaimsSet
   , HasClaimsSet (..)
   , JWKSet (..)
   , JWTError (..)
+  , Error (..)
   , TokenServerUrl (..)
-  , _JOSEError
+  , _WrapBearerAuthError
   , verifyTokenClaims
   , fetchJWKs
   ) where
@@ -25,6 +28,7 @@ import Crypto.JWT
 import Data.Aeson (FromJSON)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import Data.String (IsString)
 import Data.Text.Encoding (decodeUtf8)
 import GHC.Generics
 import Network.HTTP.Simple
@@ -35,10 +39,12 @@ insecureJWTValidationSettings = defaultJWTValidationSettings $ const True
 
 -- | Verify the cryptographic signature of a JWT, using a provided JWK store.
 verifyTokenClaims
-  :: forall store jwt m
-   . ( FromJSON jwt
+  :: forall m e store jwt
+   . ( AsError e
+     , AsJWTError e
+     , FromJSON jwt
      , HasClaimsSet jwt
-     , MonadError (AuthError JWTError) m
+     , MonadError e m
      , MonadLogger m
      , MonadTime m
      , VerificationKeyStore
@@ -62,22 +68,31 @@ verifyTokenClaims store token = do
     store
     jwt
 
-data AuthError a = NoBearerToken | JOSEError a
+data BearerAuthError a = NoBearerToken | WrapBearerAuthError a
   deriving stock (Eq, Generic, Show)
 
-_JOSEError :: Prism (AuthError a) (AuthError b) a b
-_JOSEError = prism JOSEError $ \case
+class AsBearerAuthError s where
+  _NoBearerToken :: Prism' s ()
+
+instance AsBearerAuthError (BearerAuthError a) where
+  _NoBearerToken = prism (const NoBearerToken) $ \case
+    NoBearerToken -> Right ()
+    x -> Left x
+
+_WrapBearerAuthError :: Prism (BearerAuthError a) (BearerAuthError b) a b
+_WrapBearerAuthError = prism WrapBearerAuthError $ \case
   NoBearerToken -> Left NoBearerToken
-  JOSEError x -> Right x
+  WrapBearerAuthError x -> Right x
 
-instance AsJWTError a => AsJWTError (AuthError a) where
-  _JWTError = _JOSEError . _JWTError
+instance AsJWTError a => AsJWTError (BearerAuthError a) where
+  _JWTError = _WrapBearerAuthError . _JWTError
 
-instance AsError a => AsError (AuthError a) where
-  _Error = _JOSEError . _Error
+instance AsError a => AsError (BearerAuthError a) where
+  _Error = _WrapBearerAuthError . _Error
 
 newtype TokenServerUrl = TokenServerUrl {unTokenServerUrl :: String}
   deriving stock (Eq, Show)
+  deriving newtype (IsString)
 
 instance
   (HasKid h, MonadIO m, MonadLogger m)

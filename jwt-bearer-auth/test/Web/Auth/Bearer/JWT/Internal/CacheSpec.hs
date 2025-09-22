@@ -13,6 +13,8 @@ import Web.Auth.Bearer.JWT
 import Web.Auth.Bearer.JWT.Internal.Cache
 import Web.Auth.Bearer.JWT.Test
 
+type AuthError a = JWKCacheError (BearerAuthError a)
+
 spec :: Spec
 spec = do
   describe "JWK cache with pure \"fetch\" action" $ do
@@ -32,7 +34,7 @@ spec = do
     prop @(TestJWK -> Expectation) "with test JWK set"
       $ \(TestJWK testJWK) -> do
         withJWKCacheFrom (pureJWKCache mempty) $ \jwkCache -> do
-          Right inputJWT :: Either (AuthError JWTError) SignedJWT <-
+          Right inputJWT :: Either (JWKCacheError (AuthError JWTError)) SignedJWT <-
             makeSignedTestJWT testJWK
           eVerifiedClaims :: Either (AuthError JWTError) ClaimsSet <-
             runJOSELogging
