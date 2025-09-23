@@ -77,7 +77,6 @@ Ok, let's write some code now.
 First, some imports.
 
 ```haskell
-
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DerivingVia #-}
@@ -101,7 +100,6 @@ import Web.Auth.Bearer.JWT.Cache
 import Web.Auth.Bearer.JWT.Yesod
 import Web.Auth.Bearer.JWT.Yesod.Lens
 import Yesod.Core
-
 ```
 
 
@@ -109,12 +107,10 @@ First, your `App` type (or, what Yesod also calls `site`) will need to be able t
 have a way to access the JWKStore itself. This is done by providing a `lens`.
 
 ```haskell
-
 data App = App { appJWKCache :: JWKCache }
 
 instance HasJWKStore JWKCache App where
   jwkStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
-
 ```
 
 `JWKCache`, provided by this library, provides the feature that I described in the Concepts section,
@@ -128,7 +124,6 @@ done with a CPS function to ensure that the cache thread is properly shut down a
 everything (you may already be using a similar patter for the app as a whole):
 
 ```haskell
-
 loadApp :: (App -> IO ()) -> IO ()
 loadApp f = do
    -- (this is where you'd load all the other parts of your app also)
@@ -138,7 +133,6 @@ loadApp f = do
       where
         myRefreshMicros = 10 * 60 * 10 ^ (6 :: Int)
         myServerUrl = "https://token-auth-tokens.freckletest.com"
-
 ```
 
 When you define the `Yesod` typeclass instance, you can use one of the
@@ -146,7 +140,6 @@ When you define the `Yesod` typeclass instance, you can use one of the
 boilerplate; don't mind that, it's needed to make this compile but this won't properly run anyway.
 
 ```haskell
-
 instance RenderRoute App where
   data Route App = Undefined
     deriving stock (Eq)
@@ -179,7 +172,6 @@ instance (you would also need a `ToJSON` instance if you were doing the signing,
 going to be validating ones that have already been signed.)
 
 ```haskell
-
 data ClaimsWithScope a = ClaimsWithScope [String] a
   deriving stock (Show, Eq)
 
@@ -209,13 +201,11 @@ instance HasScp (ClaimsWithScope a) where
     where
       getter (ClaimsWithScope scp _) = scp
       setter (ClaimsWithScope _ claims) scp = ClaimsWithScope scp claims
-
 ```
 
 Now we're ready to authorize requests based on the `scp` claim!
 
 ```haskell
-
 -- an even better app!
 newtype App2 = App2 { unApp2 :: App }
 
@@ -246,7 +236,6 @@ loadApp2 f = loadApp (f . App2)
 And our Main
 
 ```haskell
-
 main :: IO ()
 main = do
   args <- getArgs
@@ -254,5 +243,4 @@ main = do
   -- we don't want it to ACTUALLY run the server because obviously that just hangs forever.
   when ("--force-actually-run" `elem` args) $
     loadApp2 $ runSettings defaultSettings <=< toWaiApp
-
 ```
