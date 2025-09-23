@@ -10,11 +10,11 @@ You can use this library to implement `isAuthorized` in your `Yesod` app.
 
 First let's give a brief overview of what we're doing here, and define some terms.
 
-Bearer token: a "token" that will be inserted into the `Authorization:` header on an
+**Bearer token**: a "token" that will be inserted into the `Authorization:` header on an
 HTTP request. The server (your app) will need some way to verify that the token is valid,
 usually involving some interaction with the token server.
 
-JWT: Short for "JSON Web Token", and pronounced like the word "jot", this is a particular encoding
+**JWT**: Short for "JSON Web Token", and pronounced like the word "jot", this is a particular encoding
 for bearer tokens. It consists of a header, payload and signature. All three pieces are base64url-
 encoded and separated by a `.` character. If you were to decode each base64 segment you would see
 that the header and payload are both JSON blobs and the signature is just some binary data that will
@@ -61,10 +61,10 @@ make to the token server will actually be quite small, if you periodically load 
 background thread.
 
 Speaking of keys, we have a fun new term:
-JWK: JSON web key. It's just a standardized format for encoding the key data in JSON.
+**JWK**: JSON web key. It's just a standardized format for encoding the key data in JSON.
 
-This is all part of the general framework of *JOSE*, JSON Object Signing and Encryption. Other terms
-you might see are *JWE* for JSON Web Encryption and *JWS* for JSON Web Signatures. Here, we are only
+This is all part of the general framework of **JOSE**, JSON Object Signing and Encryption. Other terms
+you might see are **JWE** for JSON Web Encryption and **JWS** for JSON Web Signatures. Here, we are only
 dealing with Signed things (JWS), not encrypted things (JWE).
 
 Ok, let's write some code now.
