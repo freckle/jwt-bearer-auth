@@ -141,14 +141,19 @@ loadApp f = do
 ```
 
 When you define the `Yesod` typeclass instance, you can use one of the
-`isAuthorizedJWK`* functions to implement `isAuthorized`. We do also need some other Yesod
-boilerplate; don't mind that, it's needed to make this compile but this won't properly run anyway.
+`isAuthorizedJWK`* functions to implement `isAuthorized`.
 
+<!--
 ```haskell
 instance RenderRoute App where
   data Route App = Undefined
     deriving stock (Eq)
 
+instance YesodDispatch App where
+```
+-->
+
+```haskell
 instance Yesod App where
 
   -- ...(other methods)
@@ -156,8 +161,6 @@ instance Yesod App where
   isAuthorized :: Route App -> Bool -> HandlerFor App AuthResult
   isAuthorized _route _isWrite = isAuthorizedJWKCache $ \(_ :: ClaimsSet) ->
       pure Authorized
-
-instance YesodDispatch App where
 ```
 
 This is where most of the work will get done: request comes in, we check the `Authorization` header
@@ -219,11 +222,19 @@ appIso = iso unApp2 App2
 
 instance HasJWKStore JWKCache App2 where
   jwkStoreL = appIso . jwkStoreL
+```
 
+<!--
+```haskell
 instance RenderRoute App2 where
   data Route App2 = Undefined2
     deriving stock (Eq)
 
+instance YesodDispatch App2 where
+```
+-->
+
+```haskell
 instance Yesod App2 where
   isAuthorized :: Route App2 -> Bool -> HandlerFor App2 AuthResult
   isAuthorized _route isWrite = isAuthorizedJWKCache $ \(jwt :: ClaimsWithScope ClaimsSet) ->
@@ -232,14 +243,11 @@ instance Yesod App2 where
             then pure Authorized
             else pure $ Unauthorized "bad token"
 
-instance YesodDispatch App2 where
-
 loadApp2 :: (App2 -> IO ()) -> IO ()
 loadApp2 f = loadApp (f . App2)
 ```
 
-And our Main
-
+<!--
 ```haskell
 main :: IO ()
 main = do
@@ -249,3 +257,4 @@ main = do
   when ("--force-actually-run" `elem` args) $
     loadApp2 $ runSettings defaultSettings <=< toWaiApp
 ```
+-->
