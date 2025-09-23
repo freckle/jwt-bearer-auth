@@ -74,12 +74,19 @@ Ok, let's write some code now.
 
 ### Implementation
 
+First, some imports.
 ```lhaskell
 > module Foundation where
 
 > import Web.Auth.Bearer.JWT.Yesod
 > import Web.Auth.Bearer.JWT.Yesod.Lens
+> import Prelude
+> import Control.Lens
+> import Crypto.JWT
+> import Data.Aeson
+> import Data.Aeson.KeyMap
 ```
+
 
 First, your `App` type (or, what Yesod also calls `site`) will need to be able to
 have a way to access the JWKStore itself. This is done by providing a `lens`.
@@ -118,7 +125,7 @@ When you define the `Yesod` typeclass instance, you can use one of the
 ...(other methods)
 
 >   isAuthorized :: Route App -> Bool -> HandlerFor App AuthResult
->   isAuthorized route isWriteRequest = isAuthorizedJWKCache $ \_jwk ->
+>   isAuthorized route isWriteRequest = isAuthorizedJWKCache $ \_jwt ->
 >       pure Authorized
 ```
 
@@ -127,3 +134,56 @@ for a properly formatted JWT (`Bearer eyJhbGciOiJS...`), decode it into those th
 header, payload, signature), grab the right public key from our local cache, validate that the
 signature matches the payload, (and it's not expired etc.) and if all that worked out, hand you the
 decoded payload for you to look at and decide if the request is allowed.
+
+#### Checking the claims payload
+
+Now, you will almost certainly want to actually inspect the fields on the payload when making your
+decision. The `ClaimsSet` type in the `jose` library ONLY supports the claims that are required by
+the RFC for JWTs, but you can extend them with more fields. The supported way to do that is by
+providing your own data type that contains a `ClaimsSet` and provide a lens to focus on that
+`ClaimsSet`. For an example, see `Web.Auth.Bearer.JWT.Claims`. You will also need a `FromJSON`
+instance (you would also need a `ToJSON` instance if you were doing the signing, but we're only
+going to be validating ones that have already been signed.)
+
+```lhaskell
+> data ClaimsWithScope = ClaimsWithScope ClaimsSet [String]
+>   deriving stock (Show, Eq)
+>
+> instance FromJSON ClaimsWithScope where
+>   parseJSON = withObject "ClaimsWithScope" $ \v ->
+>     ClaimsWithScope
+>       <$> parseJSON @ClaimsSet (Object (delete "scp" v))
+>       <*> (concat <$> v .:? "scp")
+>
+> instance ToJSON ClaimsWithScope where
+>   toJSON (ClaimsWithScope claims scp) =
+>     let ~(Object o) = toJSON claims
+>      in Object $ insert "scp" (toJSON scp) o
+>
+> instance HasClaimsSet ClaimsWithScope where
+>   claimsSet = lens getter setter
+>     where
+>       getter (ClaimsWithScope claims _) = claims
+>       setter (ClaimsWithScope _ scp) claims = ClaimsWithScope claims scp
+>
+> claimScp :: Lens' ClaimsWithScope [String]
+> claimScp = lens getter setter
+>   where
+>     getter (ClaimsWithScope _ scp) = scp
+>     setter (ClaimsWithScope claims _) scp = ClaimsWithScope claims scp
+```
+
+Now we're ready to authorize requests based on the `scp` claim!
+
+```lhaskell
+> -- an even better app!
+> newtype App2 = App2 App
+
+> instance Yesod App2 where
+> isAuthorized :: Route App2 -> Bool -> HandlerFor App2 AuthResult
+> isAuthorized route isWrite = isAuthorizedJWKCache $ \jwt ->
+>   let requiredScp = if isWrite then "myapp:write" else "myapp:read"
+>    in if requiredScp `elem` jwt ^. claimScp
+>           then pure Authorized
+>           else pure Unauthorized
+```
