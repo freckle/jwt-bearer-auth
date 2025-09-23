@@ -91,11 +91,12 @@ module Main ( main ) where
 import Prelude
 
 import Control.Lens
-import Control.Monad ((<=<))
+import Control.Monad (when, (<=<))
 import Crypto.JWT
 import Data.Aeson
 import Data.Aeson.KeyMap
 import Network.Wai.Handler.Warp (defaultSettings, runSettings)
+import System.Environment (getArgs)
 import Web.Auth.Bearer.JWT.Cache
 import Web.Auth.Bearer.JWT.Yesod
 import Web.Auth.Bearer.JWT.Yesod.Lens
@@ -247,6 +248,11 @@ And our Main
 ```haskell
 
 main :: IO ()
-main = loadApp2 $ runSettings defaultSettings <=< toWaiApp
+main = do
+  args <- getArgs
+  -- we are using this 'main' as a test target in package.yaml;
+  -- we don't want it to ACTUALLY run the server because obviously that just hangs forever.
+  when ("--force-actually-run" `elem` args) $
+    loadApp2 $ runSettings defaultSettings <=< toWaiApp
 
 ```
