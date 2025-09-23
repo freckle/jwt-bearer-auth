@@ -23,11 +23,8 @@ information, known as "claims", that you can use to make an authorization decisi
 header will contain metadata about how the token was signed, such as what algorithm (e.g. RSA256,
 etc.) and a Key ID.
 
-For example:
-```shell
-view-jwt.sh frodo-jwt
-```
-
+For example (this shows the first two pieces—header and payload—after decoding the b64 and
+helpfully stringifying timestamps):
 ```json
 [
   {
