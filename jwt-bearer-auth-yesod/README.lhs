@@ -75,17 +75,31 @@ Ok, let's write some code now.
 ### Implementation
 
 First, some imports.
-```lhaskell
 
-> module Foundation where
+```haskell
 
-> import Web.Auth.Bearer.JWT.Yesod
-> import Web.Auth.Bearer.JWT.Yesod.Lens
-> import Prelude
-> import Control.Lens
-> import Crypto.JWT
-> import Data.Aeson
-> import Data.Aeson.KeyMap
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# OPTIONS_GHC -pgmL markdown-unlit #-}
+{-# OPTIONS_GHC -Wno-missing-methods #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-unused-packages #-}
+module Main ( main ) where
+
+import Prelude
+
+import Control.Lens
+import Control.Monad ((<=<))
+import Crypto.JWT
+import Data.Aeson
+import Data.Aeson.KeyMap
+import Network.Wai.Handler.Warp (defaultSettings, runSettings)
+import Web.Auth.Bearer.JWT.Cache
+import Web.Auth.Bearer.JWT.Yesod
+import Web.Auth.Bearer.JWT.Yesod.Lens
+import Yesod.Core
 
 ```
 
@@ -93,12 +107,12 @@ First, some imports.
 First, your `App` type (or, what Yesod also calls `site`) will need to be able to
 have a way to access the JWKStore itself. This is done by providing a `lens`.
 
-```lhaskell
+```haskell
 
-> data App = App { appJWKCache :: JWKCache }
+data App = App { appJWKCache :: JWKCache }
 
-> instance HasJWKStore JWKCache App where
->   jwkStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
+instance HasJWKStore JWKCache App where
+  jwkStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
 
 ```
 
@@ -112,31 +126,39 @@ You will, of course, also need to construct the cache while constructing your ap
 done with a CPS function to ensure that the cache thread is properly shut down at the end of
 everything (you may already be using a similar patter for the app as a whole):
 
-```lhaskell
+```haskell
 
-> loadApp :: (App -> IO ()) -> IO ()
-> loadApp f = do
+loadApp :: (App -> IO ()) -> IO ()
+loadApp f = do
+   -- (this is where you'd load all the other parts of your app also)
+   withJWKCache myRefreshMicros myServerUrl $ \jwkCache ->
+      f App{appJWKCache = jwkCache}
 
-     (this is where you'd load all the other parts of your app also)
-
->    withJWKCache myRefreshMicros myServerUrl $ \jwkCache ->
->       f App{appJWKCache = jwkCache}
+      where
+        myRefreshMicros = 10 * 60 * 10 ^ (6 :: Int)
+        myServerUrl = "https://token-auth-tokens.freckletest.com"
 
 ```
 
 When you define the `Yesod` typeclass instance, you can use one of the
-`isAuthorizedJWK`* functions to implement `isAuthorized`.
+`isAuthorizedJWK`* functions to implement `isAuthorized`. We do also need some other Yesod
+boilerplate; don't mind that, it's needed to make this compile but this won't properly run anyway.
 
-```lhaskell
+```haskell
 
-> instance Yesod App where
+instance RenderRoute App where
+  data Route App = Undefined
+    deriving stock (Eq)
 
-...(other methods)
+instance Yesod App where
 
->   isAuthorized :: Route App -> Bool -> HandlerFor App AuthResult
->   isAuthorized route isWriteRequest = isAuthorizedJWKCache $ \_jwt ->
->       pure Authorized
+  -- ...(other methods)
 
+  isAuthorized :: Route App -> Bool -> HandlerFor App AuthResult
+  isAuthorized _route _isWrite = isAuthorizedJWKCache $ \(_ :: ClaimsSet) ->
+      pure Authorized
+
+instance YesodDispatch App where
 ```
 
 This is where most of the work will get done: request comes in, we check the `Authorization` header
@@ -155,53 +177,76 @@ providing your own data type that contains a `ClaimsSet` and provide a lens to f
 instance (you would also need a `ToJSON` instance if you were doing the signing, but we're only
 going to be validating ones that have already been signed.)
 
-```lhaskell
+```haskell
 
-> data ClaimsWithScope a = ClaimsWithScope [String] a
->   deriving stock (Show, Eq)
->
-> instance FromJSON a => FromJSON (ClaimsWithScope a) where
->   parseJSON = withObject "ClaimsWithScope" $ \v ->
->     ClaimsWithScope
->       <$> (concat <$> v .:? "scp")
->       <*> parseJSON (Object (delete "scp" v))
->
-> instance ToJSON a => ToJSON (ClaimsWithScope a) where
->   toJSON (ClaimsWithScope claims scp) =
->     let ~(Object o) = toJSON claims
->      in Object $ insert "scp" (toJSON scp) o
->
-> instance HasClaimsSet a => HasClaimsSet (ClaimsWithScope a) where
->   claimsSet = myClaimsSet . claimsSet
->     where
->       myClaimsSet = lens getter setter
->       getter (ClaimsWithScope _ claims) = claims
->       setter (ClaimsWithScope scp _) claims = ClaimsWithScope scp claims
->
-> class HasScp a where
->   claimScp :: Lens' a [String]
->
-> instance HasScp (ClaimsWithScope a) where
->   claimScp = lens getter setter
->     where
->       getter (ClaimsWithScope scp _) = scp
->       setter (ClaimsWithScope _ claims) scp = ClaimsWithScope scp claims
+data ClaimsWithScope a = ClaimsWithScope [String] a
+  deriving stock (Show, Eq)
+
+instance FromJSON a => FromJSON (ClaimsWithScope a) where
+  parseJSON = withObject "ClaimsWithScope" $ \v ->
+    ClaimsWithScope
+      <$> (concat <$> v .:? "scp")
+      <*> parseJSON (Object (delete "scp" v))
+
+instance ToJSON a => ToJSON (ClaimsWithScope a) where
+  toJSON (ClaimsWithScope claims scp) =
+    let ~(Object o) = toJSON claims
+     in Object $ insert "scp" (toJSON scp) o
+
+instance HasClaimsSet a => HasClaimsSet (ClaimsWithScope a) where
+  claimsSet = myClaimsSet . claimsSet
+    where
+      myClaimsSet = lens getter setter
+      getter (ClaimsWithScope _ claims) = claims
+      setter (ClaimsWithScope scp _) claims = ClaimsWithScope scp claims
+
+class HasScp a where
+  claimScp :: Lens' a [String]
+
+instance HasScp (ClaimsWithScope a) where
+  claimScp = lens getter setter
+    where
+      getter (ClaimsWithScope scp _) = scp
+      setter (ClaimsWithScope _ claims) scp = ClaimsWithScope scp claims
 
 ```
 
 Now we're ready to authorize requests based on the `scp` claim!
 
-```lhaskell
+```haskell
 
-> -- an even better app!
-> newtype App2 = App2 App
+-- an even better app!
+newtype App2 = App2 { unApp2 :: App }
 
-> instance Yesod App2 where
-> isAuthorized :: Route App2 -> Bool -> HandlerFor App2 AuthResult
-> isAuthorized route isWrite = isAuthorizedJWKCache $ \jwt ->
->   let requiredScp = if isWrite then "myapp:write" else "myapp:read"
->    in if requiredScp `elem` jwt ^. claimScp
->           then pure Authorized
->           else pure Unauthorized
+appIso :: Iso' App2 App
+appIso = iso unApp2 App2
+
+instance HasJWKStore JWKCache App2 where
+  jwkStoreL = appIso . jwkStoreL
+
+instance RenderRoute App2 where
+  data Route App2 = Undefined2
+    deriving stock (Eq)
+
+instance Yesod App2 where
+  isAuthorized :: Route App2 -> Bool -> HandlerFor App2 AuthResult
+  isAuthorized _route isWrite = isAuthorizedJWKCache $ \(jwt :: ClaimsWithScope ClaimsSet) ->
+    let requiredScp = if isWrite then "myapp:write" else "myapp:read"
+     in if requiredScp `elem` jwt ^. claimScp
+            then pure Authorized
+            else pure $ Unauthorized "bad token"
+
+instance YesodDispatch App2 where
+
+loadApp2 :: (App2 -> IO ()) -> IO ()
+loadApp2 f = loadApp (f . App2)
+```
+
+And our Main
+
+```haskell
+
+main :: IO ()
+main = loadApp2 $ runSettings defaultSettings <=< toWaiApp
 
 ```
