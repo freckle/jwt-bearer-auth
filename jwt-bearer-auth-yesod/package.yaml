@@ -113,6 +113,7 @@ tests:
       - jwt-bearer-auth
       - jwt-bearer-auth-yesod
       - lens
-      - markdown-unlit
       - warp
       - yesod-core
+    build-tools:
+      - markdown-unlit
