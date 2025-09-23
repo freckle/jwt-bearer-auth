@@ -58,11 +58,10 @@ authorizeWithJWT authFunc = do
   req <- view (handlerRequestL . reqWaiRequestL)
   eJWT <-
     runExceptT
-      $ ( maybe
-            (throwing_ _NoBearerToken)
-            (verifyTokenClaims jwkStore)
-            (preview (authorizationHeaderL . _Just . bearerTokenP) req)
-        )
+      $ maybe
+        (throwing_ _NoBearerToken)
+        (verifyTokenClaims jwkStore)
+        (preview (authorizationHeaderL . _Just . bearerTokenP) req)
   authFunc eJWT
 
 handleCacheErrors

@@ -22,8 +22,8 @@ data ClaimsWithScope a = ClaimsWithScope [String] a
 
 instance FromJSON a => FromJSON (ClaimsWithScope a) where
   parseJSON = withObject "ClaimsWithScope" $ \v ->
-    ClaimsWithScope
-      <$> (concat <$> v .:? "scp")
+    ClaimsWithScope . (concat :: Maybe [String] -> [String])
+      <$> v .:? "scp"
       <*> parseJSON (Object (delete "scp" v))
 
 instance ToJSON a => ToJSON (ClaimsWithScope a) where
