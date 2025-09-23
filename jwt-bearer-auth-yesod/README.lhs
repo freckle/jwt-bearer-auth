@@ -146,31 +146,35 @@ instance (you would also need a `ToJSON` instance if you were doing the signing,
 going to be validating ones that have already been signed.)
 
 ```lhaskell
-> data ClaimsWithScope = ClaimsWithScope ClaimsSet [String]
+> data ClaimsWithScope a = ClaimsWithScope [String] a
 >   deriving stock (Show, Eq)
 >
-> instance FromJSON ClaimsWithScope where
+> instance FromJSON a => FromJSON (ClaimsWithScope a) where
 >   parseJSON = withObject "ClaimsWithScope" $ \v ->
 >     ClaimsWithScope
->       <$> parseJSON @ClaimsSet (Object (delete "scp" v))
->       <*> (concat <$> v .:? "scp")
+>       <$> (concat <$> v .:? "scp")
+>       <*> parseJSON (Object (delete "scp" v))
 >
-> instance ToJSON ClaimsWithScope where
+> instance ToJSON a => ToJSON (ClaimsWithScope a) where
 >   toJSON (ClaimsWithScope claims scp) =
 >     let ~(Object o) = toJSON claims
 >      in Object $ insert "scp" (toJSON scp) o
 >
-> instance HasClaimsSet ClaimsWithScope where
->   claimsSet = lens getter setter
+> instance HasClaimsSet a => HasClaimsSet (ClaimsWithScope a) where
+>   claimsSet = myClaimsSet . claimsSet
 >     where
->       getter (ClaimsWithScope claims _) = claims
->       setter (ClaimsWithScope _ scp) claims = ClaimsWithScope claims scp
+>       myClaimsSet = lens getter setter
+>       getter (ClaimsWithScope _ claims) = claims
+>       setter (ClaimsWithScope scp _) claims = ClaimsWithScope scp claims
 >
-> claimScp :: Lens' ClaimsWithScope [String]
-> claimScp = lens getter setter
->   where
->     getter (ClaimsWithScope _ scp) = scp
->     setter (ClaimsWithScope claims _) scp = ClaimsWithScope claims scp
+> class HasScp a where
+>   claimScp :: Lens' a [String]
+>
+> instance HasScp (ClaimsWithScope a) where
+>   claimScp = lens getter setter
+>     where
+>       getter (ClaimsWithScope scp _) = scp
+>       setter (ClaimsWithScope _ claims) scp = ClaimsWithScope scp claims
 ```
 
 Now we're ready to authorize requests based on the `scp` claim!
