@@ -76,6 +76,7 @@ Ok, let's write some code now.
 
 First, some imports.
 ```lhaskell
+
 > module Foundation where
 
 > import Web.Auth.Bearer.JWT.Yesod
@@ -85,6 +86,7 @@ First, some imports.
 > import Crypto.JWT
 > import Data.Aeson
 > import Data.Aeson.KeyMap
+
 ```
 
 
@@ -92,10 +94,12 @@ First, your `App` type (or, what Yesod also calls `site`) will need to be able t
 have a way to access the JWKStore itself. This is done by providing a `lens`.
 
 ```lhaskell
+
 > data App = App { appJWKCache :: JWKCache }
 
 > instance HasJWKStore JWKCache App where
 >   jwkStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
+
 ```
 
 `JWKCache`, provided by this library, provides the feature that I described in the Concepts section,
@@ -109,17 +113,22 @@ done with a CPS function to ensure that the cache thread is properly shut down a
 everything (you may already be using a similar patter for the app as a whole):
 
 ```lhaskell
+
 > loadApp :: (App -> IO ()) -> IO ()
 > loadApp f = do
+
      (this is where you'd load all the other parts of your app also)
+
 >    withJWKCache myRefreshMicros myServerUrl $ \jwkCache ->
 >       f App{appJWKCache = jwkCache}
+
 ```
 
 When you define the `Yesod` typeclass instance, you can use one of the
 `isAuthorizedJWK`* functions to implement `isAuthorized`.
 
 ```lhaskell
+
 > instance Yesod App where
 
 ...(other methods)
@@ -127,6 +136,7 @@ When you define the `Yesod` typeclass instance, you can use one of the
 >   isAuthorized :: Route App -> Bool -> HandlerFor App AuthResult
 >   isAuthorized route isWriteRequest = isAuthorizedJWKCache $ \_jwt ->
 >       pure Authorized
+
 ```
 
 This is where most of the work will get done: request comes in, we check the `Authorization` header
@@ -146,6 +156,7 @@ instance (you would also need a `ToJSON` instance if you were doing the signing,
 going to be validating ones that have already been signed.)
 
 ```lhaskell
+
 > data ClaimsWithScope a = ClaimsWithScope [String] a
 >   deriving stock (Show, Eq)
 >
@@ -175,11 +186,13 @@ going to be validating ones that have already been signed.)
 >     where
 >       getter (ClaimsWithScope scp _) = scp
 >       setter (ClaimsWithScope _ claims) scp = ClaimsWithScope scp claims
+
 ```
 
 Now we're ready to authorize requests based on the `scp` claim!
 
 ```lhaskell
+
 > -- an even better app!
 > newtype App2 = App2 App
 
@@ -190,4 +203,5 @@ Now we're ready to authorize requests based on the `scp` claim!
 >    in if requiredScp `elem` jwt ^. claimScp
 >           then pure Authorized
 >           else pure Unauthorized
+
 ```
