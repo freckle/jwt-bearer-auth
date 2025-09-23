@@ -126,7 +126,7 @@ a static one that's hardcoded. `JWKCache` is the recommended choice for producti
 
 You will, of course, also need to construct the cache while constructing your application. This is
 done with a CPS function to ensure that the cache thread is properly shut down at the end of
-everything (you may already be using a similar patter for the app as a whole):
+everything (you may already be using a similar pattern for the app as a whole):
 
 ```haskell
 loadApp :: (App -> IO ()) -> IO ()
