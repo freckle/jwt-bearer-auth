@@ -10,9 +10,12 @@ You can use this library to implement `isAuthorized` in your `Yesod` app.
 
 First let's give a brief overview of what we're doing here, and define some terms.
 
+**OAuth2**: A general framework that involves authorizing requests with tokens. What we are implementing
+here is a subset of that protocol.
+
 **Bearer token**: a "token" that will be inserted into the `Authorization:` header on an
-HTTP request. The server (your app) will need some way to verify that the token is valid,
-usually involving some interaction with the token server.
+HTTP request. The "resource server" (your app) will need some way to verify that the token is valid,
+usually involving _some interaction_ with an Oauth2 token server (more on that in a bit).
 
 **JWT**: Short for "JSON Web Token", and pronounced like the word "jot", this is a particular encoding
 for bearer tokens. It consists of a header, payload and signature. All three pieces are base64url-
@@ -53,12 +56,17 @@ helpfully stringifying timestamps):
 ]
 ```
 
-Now, remember when I said "usually involving some interaction with the token server"? Here's the
-cool part: for a JWT, that interaction doesn't actually have to require round trips for every JWT
-you see. And I don't even mean just using the raw base64 as a cache key either; you can validate the
-JWT signature completely offline, as long as you have the public key. So the number of requests you
-make to the token server will actually be quite small, if you periodically load the keys on a
-background thread.
+Now, remember when I said "usually involving some interaction with the token server"? If our tokens
+were just opaque strings, all we could do with them is send them to the token server in an
+"introspect" request and the server could tell us if the token is valid, and provide some metadata.
+For a JWT, we can already see the metadata, we just need to validate its signature.
+
+Here's the cool part: for a JWT, that interaction doesn't actually have to require round trips for
+every JWT you see. And I don't even mean just using the raw base64 as a cache key either; you can
+validate the JWT signature completely offline, as long as you have the public key. You can get the
+server's public keys using a `.well-known/jwks.json` endpoint, supported by most compliant Oauth2
+implementations. So the number of requests you make to the token server will actually be quite
+small, if you periodically load the keys on a background thread.
 
 Speaking of keys, we have a fun new term:
 **JWK**: JSON web key. It's just a standardized format for encoding the key data in JSON.
