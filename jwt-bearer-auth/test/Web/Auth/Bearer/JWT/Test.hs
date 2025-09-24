@@ -80,14 +80,15 @@ instance Arbitrary TestJWKSet where
 makeSignedTestJWT
   :: (AsError e, MonadRandom m, MonadTime m)
   => JWK
+  -> String
   -> m (Either e SignedJWT)
-makeSignedTestJWT theJWK = runJOSE $ do
+makeSignedTestJWT theJWK audience = runJOSE $ do
   theHeader <- makeJWSHeader theJWK
-  theClaims <- makeTestClaimSet
+  theClaims <- makeTestClaimSet audience
   signClaims theJWK theHeader theClaims
 
-makeTestClaimSet :: MonadTime m => m ClaimsSet
-makeTestClaimSet = do
+makeTestClaimSet :: MonadTime m => String -> m ClaimsSet
+makeTestClaimSet audience = do
   issuedAt <- currentTime
   let expiry = addUTCTime (secondsToNominalDiffTime 3600) issuedAt
   pure
@@ -96,3 +97,4 @@ makeTestClaimSet = do
       & claimIss ?~ "https://jwt-unit-test-issuer.freckle.com"
       & claimExp ?~ NumericDate expiry
       & claimSub ?~ "alice"
+      & claimAud ?~ Audience [fromString audience]
