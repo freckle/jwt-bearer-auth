@@ -95,27 +95,37 @@ module Main ( main ) where
 import Prelude
 
 import Control.Lens
-import Control.Monad (when, (<=<))
 import Crypto.JWT
 import Data.Aeson
 import Data.Aeson.KeyMap
-import Network.Wai.Handler.Warp (defaultSettings, runSettings)
-import System.Environment (getArgs)
-import Web.Auth.Bearer.JWT.Cache
 import Web.Auth.Bearer.JWT.Yesod
 import Web.Auth.Bearer.JWT.Yesod.Lens
 import Yesod.Core
 ```
 
+<!--
+```haskell
+import Control.Monad (when, (<=<))
+import Network.Wai.Handler.Warp (defaultSettings, runSettings)
+import System.Environment (getArgs)
+```
+-->
 
 First, your `App` type (or, what Yesod also calls `site`) will need to be able to
-have a way to access the JWKStore itself. This is done by providing a `lens`.
+have a way to access the JWKStore itself, as well as the `JWTBearerAuthSettings`.
+This is done by providing a `lens` for each.
 
 ```haskell
-data App = App { appJWKCache :: JWKCache }
+data App = App
+  { appJWKCache :: JWKCache
+  , appJWTSettings :: JWTBearerAuthSettings
+  }
 
 instance HasJWKStore JWKCache App where
   jwkStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
+
+instance HasJWTBearerAuthSettings App where
+  jwtBearerAuthSettingsL = lens appJWTSettings $ \app settings -> app {appJWTSettings = settings}
 ```
 
 `JWKCache`, provided by this library, provides the feature that I described in the Concepts section,
@@ -132,12 +142,17 @@ everything (you may already be using a similar pattern for the app as a whole):
 loadApp :: (App -> IO ()) -> IO ()
 loadApp f = do
    -- (this is where you'd load all the other parts of your app also)
-   withJWKCache myRefreshMicros myServerUrl $ \jwkCache ->
-      f App{appJWKCache = jwkCache}
+   withJWKCache myJWTSettings $ \jwkCache ->
+      f App{appJWKCache = jwkCache, appJWTSettings = myJWTSettings}
 
       where
         myRefreshMicros = 10 * 60 * 10 ^ (6 :: Int)
         myServerUrl = "https://token-auth-tokens.freckletest.com"
+        myJWTSettings = JWTBearerAuthSettings
+          { jwtExpectedAudience = "elrond"
+          , jwtCacheRefreshDelayMicros = myRefreshMicros
+          , jwtTokenServerUrl = myServerUrl
+          }
 ```
 
 When you define the `Yesod` typeclass instance, you can use one of the
@@ -222,6 +237,9 @@ appIso = iso unApp2 App2
 
 instance HasJWKStore JWKCache App2 where
   jwkStoreL = appIso . jwkStoreL
+
+instance HasJWTBearerAuthSettings App2 where
+  jwtBearerAuthSettingsL = appIso . jwtBearerAuthSettingsL
 ```
 
 <!--

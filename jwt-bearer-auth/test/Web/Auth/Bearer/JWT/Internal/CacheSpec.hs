@@ -18,27 +18,27 @@ type AuthError a = JWKCacheError (BearerAuthError a)
 spec :: Spec
 spec = do
   describe "JWK cache with pure \"fetch\" action" $ do
-    prop @(TestJWKSet -> TestJWK -> Expectation) "with test JWK set"
-      $ \(TestJWKSet (JWKSet otherJWKs)) (TestJWK testJWK) -> do
+    prop @(TestJWKSet -> TestJWK -> TestAudience -> Expectation) "with test JWK set"
+      $ \(TestJWKSet (JWKSet otherJWKs)) (TestJWK testJWK) (TestAudience testAudience) -> do
         let jwkSet = JWKSet (testJWK : otherJWKs)
         withJWKCacheFrom (pureJWKCache jwkSet) $ \jwkCache -> do
           Right inputJWT :: Either (AuthError JWTError) SignedJWT <-
-            makeSignedTestJWT testJWK
+            makeSignedTestJWT testJWK testAudience
           eVerifiedClaims :: Either (AuthError JWTError) ClaimsSet <-
             runJOSELogging
-              $ verifyTokenClaims jwkCache (BS.toStrict $ encodeCompact inputJWT)
+              $ verifyTokenClaims jwkCache testAudience (BS.toStrict $ encodeCompact inputJWT)
           Right extractedClaims :: Either (AuthError JWTError) ClaimsSet <-
             runJOSE $ unsafeGetJWTClaimsSet inputJWT
           eVerifiedClaims ^? _Right `shouldBe` Just extractedClaims
   describe "empty JWK cache" $ do
-    prop @(TestJWK -> Expectation) "with test JWK set"
-      $ \(TestJWK testJWK) -> do
+    prop @(TestJWK -> TestAudience -> Expectation) "with test JWK set"
+      $ \(TestJWK testJWK) (TestAudience testAudience) -> do
         withJWKCacheFrom (pureJWKCache mempty) $ \jwkCache -> do
           Right inputJWT :: Either (JWKCacheError (AuthError JWTError)) SignedJWT <-
-            makeSignedTestJWT testJWK
+            makeSignedTestJWT testJWK testAudience
           eVerifiedClaims :: Either (AuthError JWTError) ClaimsSet <-
             runJOSELogging
-              $ verifyTokenClaims jwkCache (BS.toStrict $ encodeCompact inputJWT)
+              $ verifyTokenClaims jwkCache testAudience (BS.toStrict $ encodeCompact inputJWT)
           eVerifiedClaims `shouldBe` Left (_JWTError . _Error # NoUsableKeys)
 
 runJOSELogging :: NoLoggingT (JOSE e m) a -> m (Either e a)
