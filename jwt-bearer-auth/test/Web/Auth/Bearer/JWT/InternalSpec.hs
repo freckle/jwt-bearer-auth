@@ -11,15 +11,12 @@ import Web.Auth.Bearer.JWT.Test
 
 spec :: Spec
 spec = modifyMaxSuccess (`div` 7) $ parallel $ do
-
   describe "TestJWK" $ do
-
     prop "generates test JWK" $ \(TestJWK testJWK) -> do
       testJWK ^. jwkUse `shouldBe` Just Sig
       testJWK ^. jwkAlg `shouldBe` Just (JWSAlg RS256)
 
   describe "verifyTokenClaims" $ do
-
     prop "successfully validates valid token"
       $ \(TestJWK theJWK) (TestAudience aud) -> do
         Right goodJWT :: Either (AuthError JWTError) SignedJWT <-
@@ -39,5 +36,5 @@ spec = modifyMaxSuccess (`div` 7) $ parallel $ do
         Right expectedClaims :: Either (AuthError JWTError) ClaimsSet <-
           runJOSENoLogging $ unsafeGetJWTClaimsSet badJWT
         if signingKey ^. jwkMaterial == verifyingKey ^. jwkMaterial
-           then eClaims `shouldBe` Right expectedClaims
-           else eClaims `shouldBe` Left (_JWTError . _Error # JWSInvalidSignature)
+          then eClaims `shouldBe` Right expectedClaims
+          else eClaims `shouldBe` Left (_JWTError . _Error # JWSInvalidSignature)
