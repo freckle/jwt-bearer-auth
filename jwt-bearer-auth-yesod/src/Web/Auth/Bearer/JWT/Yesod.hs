@@ -139,7 +139,9 @@ deriving via
   instance
     MonadTime (HandlerFor site)
 
-withJWKCache :: MonadUnliftIO m => JWTBearerAuthSettings -> (JWKCache -> m a) -> m a
 withJWKCache
-  JWTBearerAuthSettings{jwtTokenServerUrl, jwtCacheRefreshDelayMicros} f =
+  :: MonadUnliftIO m => JWTBearerAuthSettings -> (JWKCache -> m a) -> m a
+withJWKCache
+  JWTBearerAuthSettings {jwtTokenServerUrl, jwtCacheRefreshDelayMicros}
+  f =
     JWKCache.withJWKCache jwtCacheRefreshDelayMicros jwtTokenServerUrl f
