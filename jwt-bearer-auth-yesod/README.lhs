@@ -136,7 +136,13 @@ a static one that's hardcoded. `JWKCache` is the recommended choice for producti
 
 You will, of course, also need to construct the cache while constructing your application. This is
 done with a CPS function to ensure that the cache thread is properly shut down at the end of
-everything (you may already be using a similar pattern for the app as a whole):
+everything (you may already be using a similar pattern for the app as a whole). You also have to
+provide an expected "audience" value. The **audience** identifies the service who *should* be
+consuming this token for authorization—you don't want to let someone do things using a token that
+wasn't even meant for you. You could, technically, check this yourself when you are checking the
+other fields in the token; but this one is Mandatory (by RFC), so it's treated specially. Let's
+assume in this case that _your app_ is `"elrond"`, and the token is giving `"frodobaggins"`
+permission to make requests of you.
 
 ```haskell
 loadApp :: (App -> IO ()) -> IO ()
@@ -146,8 +152,9 @@ loadApp f = do
       f App{appJWKCache = jwkCache, appJWTSettings = myJWTSettings}
 
       where
+        -- ten minutes
         myRefreshMicros = 10 * 60 * 10 ^ (6 :: Int)
-        myServerUrl = "https://token-auth-tokens.freckletest.com"
+        myServerUrl = "https://tokens.myapp.com"
         myJWTSettings = JWTBearerAuthSettings
           { jwtExpectedAudience = "elrond"
           , jwtCacheRefreshDelayMicros = myRefreshMicros
