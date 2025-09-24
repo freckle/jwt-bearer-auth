@@ -3,11 +3,13 @@
 module Web.Auth.Bearer.JWT.Yesod.Lens
   ( HasJWKStore (..)
   , handlerJWKStoreL
+  , handlerJWTBearerAuthSettingsL
   ) where
 
 import Prelude
 
 import Control.Lens
+import Web.Auth.Bearer.JWT.Yesod.Types
 import Yesod.Core.Types
 import Yesod.Core.Types.Lens
 
@@ -21,3 +23,9 @@ class HasJWKStore store app where
 handlerJWKStoreL
   :: HasJWKStore store site => Lens' (HandlerData child site) store
 handlerJWKStoreL = handlerEnvL . rheSiteL . jwkStoreL
+
+-- | Composed lens from HandlerData to JWT Bearer auth settings
+-- Goes: HandlerData -> RunHandlerEnv -> site -> JWT Bearer auth settings
+handlerJWTBearerAuthSettingsL
+  :: HasJWTBearerAuthSettings site => Lens' (HandlerData child site) JWTBearerAuthSettings
+handlerJWTBearerAuthSettingsL = handlerEnvL . rheSiteL . jwtBearerAuthSettingsL

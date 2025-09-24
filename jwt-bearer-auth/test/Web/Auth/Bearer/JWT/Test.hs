@@ -3,6 +3,7 @@ module Web.Auth.Bearer.JWT.Test
   , pureJWKCache
   , TestJWK (..)
   , TestJWKSet (..)
+  , TestAudience (..)
   , makeSignedTestJWT
   , makeTestClaimSet
   ) where
@@ -17,6 +18,7 @@ import Control.Monad.Time
 import Crypto.JOSE
 import Crypto.JWT
 import Data.Cache.Polling hiding (currentTime)
+import Data.String (fromString)
 import qualified Data.Text as T
 import Data.Time (addUTCTime, secondsToNominalDiffTime)
 import Test.QuickCheck
@@ -54,6 +56,9 @@ newtype TestJWK = TestJWK {unTestJWK :: JWK}
 newtype TestJWKSet = TestJWKSet {unTestJWKSet :: JWKSet}
   deriving stock (Eq, Show)
 
+newtype TestAudience = TestAudience {unTestAudience :: String}
+  deriving stock (Eq, Show)
+
 instance Arbitrary TestJWK where
   arbitrary = do
     drg <- drgNewSeed . seedFromInteger <$> arbitrary
@@ -76,6 +81,12 @@ instance Arbitrary TestJWK where
 instance Arbitrary TestJWKSet where
   arbitrary = sized $ \size ->
     fmap (TestJWKSet . JWKSet . fmap unTestJWK) (vectorOf size arbitrary)
+
+instance Arbitrary TestAudience where
+  arbitrary = do
+    domain <- elements ["example.com", "test.org", "api.service"]
+    subdomain <- elements ["", "app.", "auth.", "service."]
+    pure $ TestAudience $ "https://" <> subdomain <> domain
 
 makeSignedTestJWT
   :: (AsError e, MonadRandom m, MonadTime m)
