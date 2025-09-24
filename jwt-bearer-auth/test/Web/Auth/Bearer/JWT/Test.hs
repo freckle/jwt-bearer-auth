@@ -1,28 +1,32 @@
 module Web.Auth.Bearer.JWT.Test
-  ( testJWKCache
-  , pureJWKCache
+  ( AuthError
+  , TestAudience (..)
   , TestJWK (..)
   , TestJWKSet (..)
-  , TestAudience (..)
+  , encodeToStrict
   , makeSignedTestJWT
   , makeTestClaimSet
+  , pureJWKCache
+  , runJOSENoLogging
+  , testJWKCache
   ) where
-
--- import Web.Auth.Bearer.JWT
 
 import Prelude
 
 import Control.Concurrent (threadDelay)
 import Control.Lens hiding (elements)
+import Control.Monad.Logger.Aeson (NoLoggingT (..))
 import Control.Monad.Time
 import Crypto.JOSE
 import Crypto.JWT
+import qualified Data.ByteString as BS
 import Data.Cache.Polling hiding (currentTime)
 import Data.String (fromString)
 import qualified Data.Text as T
 import Data.Time (addUTCTime, secondsToNominalDiffTime)
 import Test.QuickCheck
 import UnliftIO (liftIO)
+import Web.Auth.Bearer.JWT
 import Web.Auth.Bearer.JWT.Internal.Cache
 
 testJWKCache
@@ -109,3 +113,11 @@ makeTestClaimSet audience = do
       & claimExp ?~ NumericDate expiry
       & claimSub ?~ "alice"
       & claimAud ?~ Audience [fromString audience]
+
+runJOSENoLogging :: NoLoggingT (JOSE e m) a -> m (Either e a)
+runJOSENoLogging = runJOSE . runNoLoggingT
+
+encodeToStrict :: SignedJWT -> BS.ByteString
+encodeToStrict = BS.toStrict . encodeCompact
+
+type AuthError a = JWKCacheError (BearerAuthError a)

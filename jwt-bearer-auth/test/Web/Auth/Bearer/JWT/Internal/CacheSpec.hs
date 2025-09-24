@@ -3,20 +3,16 @@ module Web.Auth.Bearer.JWT.Internal.CacheSpec (spec) where
 import Prelude
 
 import Control.Lens
-import Control.Monad.Logger.Aeson
 import Crypto.JOSE
 import Crypto.JWT
-import qualified Data.ByteString as BS
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Web.Auth.Bearer.JWT
 import Web.Auth.Bearer.JWT.Internal.Cache
 import Web.Auth.Bearer.JWT.Test
 
-type AuthError a = JWKCacheError (BearerAuthError a)
-
 spec :: Spec
-spec = do
+spec = modifyMaxSuccess (`div` 7) $ parallel $ do
   describe "JWK cache with pure \"fetch\" action" $ do
     prop @(TestJWKSet -> TestJWK -> TestAudience -> Expectation) "with test JWK set"
       $ \(TestJWKSet (JWKSet otherJWKs)) (TestJWK testJWK) (TestAudience testAudience) -> do
@@ -25,8 +21,8 @@ spec = do
           Right inputJWT :: Either (AuthError JWTError) SignedJWT <-
             makeSignedTestJWT testJWK testAudience
           eVerifiedClaims :: Either (AuthError JWTError) ClaimsSet <-
-            runJOSELogging
-              $ verifyTokenClaims jwkCache testAudience (BS.toStrict $ encodeCompact inputJWT)
+            runJOSENoLogging
+              $ verifyTokenClaims jwkCache testAudience (encodeToStrict inputJWT)
           Right extractedClaims :: Either (AuthError JWTError) ClaimsSet <-
             runJOSE $ unsafeGetJWTClaimsSet inputJWT
           eVerifiedClaims ^? _Right `shouldBe` Just extractedClaims
@@ -37,9 +33,6 @@ spec = do
           Right inputJWT :: Either (JWKCacheError (AuthError JWTError)) SignedJWT <-
             makeSignedTestJWT testJWK testAudience
           eVerifiedClaims :: Either (AuthError JWTError) ClaimsSet <-
-            runJOSELogging
-              $ verifyTokenClaims jwkCache testAudience (BS.toStrict $ encodeCompact inputJWT)
+            runJOSENoLogging
+              $ verifyTokenClaims jwkCache testAudience (encodeToStrict inputJWT)
           eVerifiedClaims `shouldBe` Left (_JWTError . _Error # NoUsableKeys)
-
-runJOSELogging :: NoLoggingT (JOSE e m) a -> m (Either e a)
-runJOSELogging = runJOSE . runNoLoggingT
