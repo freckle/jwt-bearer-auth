@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
@@ -10,6 +11,9 @@ module Web.Auth.Bearer.JWT.Yesod
   , isAuthorizedJWKDefault
   , handleCacheErrors
   , handleDefaultErrors
+  , JWKCache
+  , withJWKStore
+  , module Web.Auth.Bearer.JWT.Yesod.Types
   ) where
 
 import Prelude
@@ -28,8 +32,10 @@ import Crypto.JOSE
   )
 import Network.Wai.Lens
 import Web.Auth.Bearer.JWT
-import Web.Auth.Bearer.JWT.Cache
+import Web.Auth.Bearer.JWT.Cache hiding (withJWKCache)
+import qualified Web.Auth.Bearer.JWT.Cache as JWKCache
 import Web.Auth.Bearer.JWT.Yesod.Lens
+import Web.Auth.Bearer.JWT.Yesod.Types
 import Yesod.Core
 import Yesod.Core.Types (HandlerData, HandlerFor (..))
 import Yesod.Core.Types.Lens
@@ -43,7 +49,7 @@ authorizeWithJWT
      , AsJWTError e
      , FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasJWKStore store site
+     , HasConfiguredKeyStore store site
      , VerificationKeyStore
          (ExceptT e (HandlerFor site))
          (JWSHeader RequiredProtection)
@@ -54,13 +60,14 @@ authorizeWithJWT
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 authorizeWithJWT authFunc = do
-  jwkStore <- view (handlerJWKStoreL @store)
+  (ConfiguredStore settings jwkStore) <-
+    view (handlerConfiguredKeyStoreL @store)
   req <- view (handlerRequestL . reqWaiRequestL)
   eJWT <-
     runExceptT
       $ maybe
         (throwing_ _NoBearerToken)
-        (verifyTokenClaims jwkStore)
+        (verifyTokenClaims jwkStore (settings ^. settingsExpectedAudience))
         (preview (authorizationHeaderL . _Just . bearerTokenP) req)
   authFunc eJWT
 
@@ -89,12 +96,12 @@ isAuthorizedJWKCache
   :: forall jwtType site
    . ( FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasJWKStore JWKCache site
+     , HasConfiguredKeyStore JWKCache site
      )
   => (jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
-isAuthorizedJWKCache f =
+isAuthorizedJWKCache f = do
   authorizeWithJWT @CacheAuthError @JWKCache @jwtType @site
     (either handleCacheErrors f)
 
@@ -102,7 +109,7 @@ isAuthorizedJWKDefault
   :: forall jwtType store site
    . ( FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasJWKStore store site
+     , HasConfiguredKeyStore store site
      , VerificationKeyStore
          (ExceptT AuthError (HandlerFor site))
          (JWSHeader RequiredProtection)
@@ -112,7 +119,7 @@ isAuthorizedJWKDefault
   => (jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
-isAuthorizedJWKDefault f =
+isAuthorizedJWKDefault f = do
   authorizeWithJWT @AuthError @store @jwtType @site
     (either handleDefaultErrors f)
 
@@ -124,3 +131,22 @@ deriving via
   (ReaderT (HandlerData site site) IO)
   instance
     MonadTime (HandlerFor site)
+
+withJWKStore
+  :: MonadUnliftIO m
+  => JWTBearerAuthSettings store
+  -> (ConfiguredStore store -> m a)
+  -> m a
+withJWKStore
+  settings@JWKCacheSettings {jwkCacheTokenServerUrl, jwkCacheRefreshDelayMicros}
+  f =
+    JWKCache.withJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl
+      $ f . ConfiguredStore settings
+withJWKStore
+  settings@StaticJWKSettings {staticJWK}
+  f =
+    f (ConfiguredStore settings staticJWK)
+withJWKStore
+  settings@TokenServerSettings {tokenServerUrl}
+  f =
+    f (ConfiguredStore settings tokenServerUrl)

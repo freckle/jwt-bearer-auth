@@ -95,27 +95,34 @@ module Main ( main ) where
 import Prelude
 
 import Control.Lens
-import Control.Monad (when, (<=<))
 import Crypto.JWT
 import Data.Aeson
 import Data.Aeson.KeyMap
-import Network.Wai.Handler.Warp (defaultSettings, runSettings)
-import System.Environment (getArgs)
-import Web.Auth.Bearer.JWT.Cache
 import Web.Auth.Bearer.JWT.Yesod
-import Web.Auth.Bearer.JWT.Yesod.Lens
 import Yesod.Core
 ```
 
+<!--
+```haskell
+import Control.Monad (when, (<=<))
+import Network.Wai.Handler.Warp (defaultSettings, runSettings)
+import System.Environment (getArgs)
+```
+-->
 
 First, your `App` type (or, what Yesod also calls `site`) will need to be able to
-have a way to access the JWKStore itself. This is done by providing a `lens`.
+have a way to access the `ConfiguredStore`. That's your source of public keys with which to verify
+bearer tokens, including any settings required to set it up.
+
+This is done by providing a `lens`.
 
 ```haskell
-data App = App { appJWKCache :: JWKCache }
+data App = App
+  { appJWKCache :: ConfiguredStore JWKCache
+  }
 
-instance HasJWKStore JWKCache App where
-  jwkStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
+instance HasConfiguredKeyStore JWKCache App where
+  configuredKeyStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
 ```
 
 `JWKCache`, provided by this library, provides the feature that I described in the Concepts section,
@@ -126,18 +133,30 @@ a static one that's hardcoded. `JWKCache` is the recommended choice for producti
 
 You will, of course, also need to construct the cache while constructing your application. This is
 done with a CPS function to ensure that the cache thread is properly shut down at the end of
-everything (you may already be using a similar pattern for the app as a whole):
+everything (you may already be using a similar pattern for the app as a whole). You also have to
+provide an expected "audience" value. The **audience** identifies the service who *should* be
+consuming this token for authorization—you don't want to let someone do things using a token that
+wasn't even meant for you. You could, technically, check this yourself when you are checking the
+other fields in the token; but this one is Mandatory (by RFC), so it's treated specially. Let's
+assume in this case that _your app_ is `"elrond"`, and the token is giving `"frodobaggins"`
+permission to make requests of you.
 
 ```haskell
 loadApp :: (App -> IO ()) -> IO ()
 loadApp f = do
    -- (this is where you'd load all the other parts of your app also)
-   withJWKCache myRefreshMicros myServerUrl $ \jwkCache ->
-      f App{appJWKCache = jwkCache}
+   withJWKStore myJWTSettings $ \configuredStore ->
+      f App{appJWKCache = configuredStore}
 
       where
+        -- ten minutes
         myRefreshMicros = 10 * 60 * 10 ^ (6 :: Int)
-        myServerUrl = "https://token-auth-tokens.freckletest.com"
+        myServerUrl = "https://tokens.myapp.com"
+        myJWTSettings = JWKCacheSettings
+          { jwkCacheExpectedAudience = "elrond"
+          , jwkCacheRefreshDelayMicros = myRefreshMicros
+          , jwkCacheTokenServerUrl = myServerUrl
+          }
 ```
 
 When you define the `Yesod` typeclass instance, you can use one of the
@@ -220,8 +239,8 @@ newtype App2 = App2 { unApp2 :: App }
 appIso :: Iso' App2 App
 appIso = iso unApp2 App2
 
-instance HasJWKStore JWKCache App2 where
-  jwkStoreL = appIso . jwkStoreL
+instance HasConfiguredKeyStore JWKCache App2 where
+  configuredKeyStoreL = appIso . configuredKeyStoreL
 ```
 
 <!--

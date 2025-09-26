@@ -104,13 +104,12 @@ tests:
       - -with-rtsopts=-N
     dependencies: []
       # - jwt-bearer-auth-yesod
-  jwt-bearer-auth-readme:
+  jwt-bearer-auth-yesod-readme:
     main: README.lhs
     ghc-options: -pgmL markdown-unlit
     dependencies:
       - aeson
       - jose
-      - jwt-bearer-auth
       - jwt-bearer-auth-yesod
       - lens
       - warp
