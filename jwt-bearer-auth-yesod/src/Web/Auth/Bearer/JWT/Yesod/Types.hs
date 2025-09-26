@@ -1,23 +1,18 @@
 -- |
 -- This module provides JWT Bearer authentication types for Yesod applications.
 module Web.Auth.Bearer.JWT.Yesod.Types
-  ( JWTBearerAuthSettings (JWKCacheSettings, TokenServerSettings, StaticJWKSettings)
+  ( JWTBearerAuthSettings (..)
   , HasJWTBearerAuthSettings (..)
   , ConfiguredStore (..)
+  , settingsExpectedAudience
   ) where
 
 import Prelude
 
--- import Control.Lens
--- import Web.Auth.Bearer.JWT (TokenServerUrl)
--- import Web.Auth.Bearer.JWT.Cache (JWKCache)
--- import Crypto.JOSE (JWK)
-
-data TokenServerUrl = TokenServerUrl String
-data JWKCache = JWKCache
-data JWK = JWK
-
-type Lens' s a = forall f. Functor f => (a -> f a) -> s -> f s
+import Control.Lens
+import Web.Auth.Bearer.JWT (TokenServerUrl)
+import Web.Auth.Bearer.JWT.Cache (JWKCache)
+import Crypto.JOSE (JWK)
 
 data ConfiguredStore a = ConfiguredStore
   { settings :: JWTBearerAuthSettings a
@@ -48,8 +43,19 @@ data JWTBearerAuthSettings storeType where
        , staticJWK :: JWK }
     -> JWTBearerAuthSettings JWK
 
--- deriving stock instance Eq (JWTBearerAuthSettings storeType)
--- deriving stock instance Show (JWTBearerAuthSettings storeType)
+settingsExpectedAudience :: Lens' (JWTBearerAuthSettings storeType) String
+settingsExpectedAudience = lens getter setter
+  where
+    getter :: JWTBearerAuthSettings a -> String
+    getter (JWKCacheSettings aud _ _) = aud
+    getter (TokenServerSettings aud _) = aud
+    getter (StaticJWKSettings aud _) = aud
+
+    setter :: JWTBearerAuthSettings a -> String -> JWTBearerAuthSettings a
+    setter (JWKCacheSettings _ x y) aud = JWKCacheSettings aud x y
+    setter (TokenServerSettings _ x) aud = TokenServerSettings aud x
+    setter (StaticJWKSettings _ x) aud = StaticJWKSettings aud x
+
 
 -- | Type class for extracting JWT Bearer auth settings from an application type
 class HasJWTBearerAuthSettings storeType a where

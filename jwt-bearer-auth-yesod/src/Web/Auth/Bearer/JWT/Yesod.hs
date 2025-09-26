@@ -49,26 +49,25 @@ authorizeWithJWT
      , AsJWTError e
      , FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasJWKStore store site
+     , HasJWTBearerAuthSettings store site
      , VerificationKeyStore
          (ExceptT e (HandlerFor site))
          (JWSHeader RequiredProtection)
          jwtType
          store
      )
-  => String
-  -- ^ Expected audience
-  -> (Either e jwtType -> HandlerFor site AuthResult)
+  => (Either e jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
-authorizeWithJWT expectedAudience authFunc = do
-  (ConfiguredStore settings jwkStore) <- view (handlerJWKStoreL @store)
+authorizeWithJWT authFunc = do
+  (ConfiguredStore settings jwkStore) <-
+    view (handlerJWTBearerAuthSettingsL @store)
   req <- view (handlerRequestL . reqWaiRequestL)
   eJWT <-
     runExceptT
       $ maybe
         (throwing_ _NoBearerToken)
-        (verifyTokenClaims jwkStore expectedAudience)
+        (verifyTokenClaims jwkStore (settings ^. settingsExpectedAudience))
         (preview (authorizationHeaderL . _Just . bearerTokenP) req)
   authFunc eJWT
 
@@ -103,16 +102,13 @@ isAuthorizedJWKCache
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 isAuthorizedJWKCache f = do
-  ConfiguredStore{settings=JWKCacheSettings{jwkCacheExpectedAudience}} <- view handlerJWTBearerAuthSettingsL
   authorizeWithJWT @CacheAuthError @JWKCache @jwtType @site
-    jwkCacheExpectedAudience
     (either handleCacheErrors f)
 
 isAuthorizedJWKDefault
   :: forall jwtType store site
    . ( FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasJWKStore store site
      , HasJWTBearerAuthSettings store site
      , VerificationKeyStore
          (ExceptT AuthError (HandlerFor site))
@@ -124,9 +120,7 @@ isAuthorizedJWKDefault
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 isAuthorizedJWKDefault f = do
-  settings <- view handlerJWTBearerAuthSettingsL
   authorizeWithJWT @AuthError @store @jwtType @site
-    (jwtExpectedAudience settings)
     (either handleDefaultErrors f)
 
 -- | orphan instance to make runExceptT work.
@@ -139,8 +133,9 @@ deriving via
     MonadTime (HandlerFor site)
 
 withJWKCache
-  :: MonadUnliftIO m => JWTBearerAuthSettings -> (JWKCache -> m a) -> m a
+  :: MonadUnliftIO m => JWTBearerAuthSettings JWKCache -> (ConfiguredStore JWKCache -> m a) -> m a
 withJWKCache
-  JWTBearerAuthSettings {jwtTokenServerUrl, jwtCacheRefreshDelayMicros}
+  settings@JWKCacheSettings {jwkCacheTokenServerUrl, jwkCacheRefreshDelayMicros}
   f =
-    JWKCache.withJWKCache jwtCacheRefreshDelayMicros jwtTokenServerUrl f
+    JWKCache.withJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl $
+      f . ConfiguredStore settings
