@@ -27,6 +27,6 @@ handlerJWKStoreL = handlerEnvL . rheSiteL . jwkStoreL
 -- | Composed lens from HandlerData to JWT Bearer auth settings
 -- Goes: HandlerData -> RunHandlerEnv -> site -> JWT Bearer auth settings
 handlerJWTBearerAuthSettingsL
-  :: HasJWTBearerAuthSettings site
-  => Lens' (HandlerData child site) JWTBearerAuthSettings
+  :: HasJWTBearerAuthSettings store site
+  => Lens' (HandlerData child site) (ConfiguredStore store)
 handlerJWTBearerAuthSettingsL = handlerEnvL . rheSiteL . jwtBearerAuthSettingsL

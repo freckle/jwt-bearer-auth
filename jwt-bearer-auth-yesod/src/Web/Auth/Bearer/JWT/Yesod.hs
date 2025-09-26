@@ -62,7 +62,7 @@ authorizeWithJWT
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 authorizeWithJWT expectedAudience authFunc = do
-  jwkStore <- view (handlerJWKStoreL @store)
+  (ConfiguredStore settings jwkStore) <- view (handlerJWKStoreL @store)
   req <- view (handlerRequestL . reqWaiRequestL)
   eJWT <-
     runExceptT
@@ -97,16 +97,15 @@ isAuthorizedJWKCache
   :: forall jwtType site
    . ( FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasJWKStore JWKCache site
-     , HasJWTBearerAuthSettings site
+     , HasJWTBearerAuthSettings JWKCache site
      )
   => (jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 isAuthorizedJWKCache f = do
-  settings <- view handlerJWTBearerAuthSettingsL
+  ConfiguredStore{settings=JWKCacheSettings{jwkCacheExpectedAudience}} <- view handlerJWTBearerAuthSettingsL
   authorizeWithJWT @CacheAuthError @JWKCache @jwtType @site
-    (jwtExpectedAudience settings)
+    jwkCacheExpectedAudience
     (either handleCacheErrors f)
 
 isAuthorizedJWKDefault
@@ -114,7 +113,7 @@ isAuthorizedJWKDefault
    . ( FromJSON jwtType
      , HasClaimsSet jwtType
      , HasJWKStore store site
-     , HasJWTBearerAuthSettings site
+     , HasJWTBearerAuthSettings store site
      , VerificationKeyStore
          (ExceptT AuthError (HandlerFor site))
          (JWSHeader RequiredProtection)
