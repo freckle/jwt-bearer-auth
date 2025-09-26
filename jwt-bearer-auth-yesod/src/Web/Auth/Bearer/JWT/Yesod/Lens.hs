@@ -2,8 +2,7 @@
 -- This module provides JWT-specific lenses and typeclasses for Yesod applications.
 module Web.Auth.Bearer.JWT.Yesod.Lens
   ( HasJWKStore (..)
-  , handlerJWKStoreL
-  , handlerJWTBearerAuthSettingsL
+  , handlerConfiguredKeyStoreL
   ) where
 
 import Prelude
@@ -18,15 +17,9 @@ import Yesod.Core.Types.Lens
 class HasJWKStore store app where
   jwkStoreL :: Lens' app store
 
--- | Composed lens from HandlerData to JWK store
--- Goes: HandlerData -> RunHandlerEnv -> site -> JWK store
-handlerJWKStoreL
-  :: HasJWKStore store site => Lens' (HandlerData child site) store
-handlerJWKStoreL = handlerEnvL . rheSiteL . jwkStoreL
-
 -- | Composed lens from HandlerData to JWT Bearer auth settings
 -- Goes: HandlerData -> RunHandlerEnv -> site -> JWT Bearer auth settings
-handlerJWTBearerAuthSettingsL
-  :: HasJWTBearerAuthSettings store site
+handlerConfiguredKeyStoreL
+  :: HasConfiguredKeyStore store site
   => Lens' (HandlerData child site) (ConfiguredStore store)
-handlerJWTBearerAuthSettingsL = handlerEnvL . rheSiteL . jwtBearerAuthSettingsL
+handlerConfiguredKeyStoreL = handlerEnvL . rheSiteL . configuredKeyStoreL

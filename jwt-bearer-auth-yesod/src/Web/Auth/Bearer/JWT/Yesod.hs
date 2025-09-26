@@ -12,7 +12,7 @@ module Web.Auth.Bearer.JWT.Yesod
   , handleCacheErrors
   , handleDefaultErrors
   , JWKCache
-  , withJWKCache
+  , withJWKStore
   , module Web.Auth.Bearer.JWT.Yesod.Types
   ) where
 
@@ -49,7 +49,7 @@ authorizeWithJWT
      , AsJWTError e
      , FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasJWTBearerAuthSettings store site
+     , HasConfiguredKeyStore store site
      , VerificationKeyStore
          (ExceptT e (HandlerFor site))
          (JWSHeader RequiredProtection)
@@ -61,7 +61,7 @@ authorizeWithJWT
   -> HandlerFor site AuthResult
 authorizeWithJWT authFunc = do
   (ConfiguredStore settings jwkStore) <-
-    view (handlerJWTBearerAuthSettingsL @store)
+    view (handlerConfiguredKeyStoreL @store)
   req <- view (handlerRequestL . reqWaiRequestL)
   eJWT <-
     runExceptT
@@ -96,7 +96,7 @@ isAuthorizedJWKCache
   :: forall jwtType site
    . ( FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasJWTBearerAuthSettings JWKCache site
+     , HasConfiguredKeyStore JWKCache site
      )
   => (jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
@@ -109,7 +109,7 @@ isAuthorizedJWKDefault
   :: forall jwtType store site
    . ( FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasJWTBearerAuthSettings store site
+     , HasConfiguredKeyStore store site
      , VerificationKeyStore
          (ExceptT AuthError (HandlerFor site))
          (JWSHeader RequiredProtection)
@@ -132,10 +132,21 @@ deriving via
   instance
     MonadTime (HandlerFor site)
 
-withJWKCache
-  :: MonadUnliftIO m => JWTBearerAuthSettings JWKCache -> (ConfiguredStore JWKCache -> m a) -> m a
-withJWKCache
+withJWKStore
+  :: MonadUnliftIO m
+  => JWTBearerAuthSettings store
+  -> (ConfiguredStore store -> m a)
+  -> m a
+withJWKStore
   settings@JWKCacheSettings {jwkCacheTokenServerUrl, jwkCacheRefreshDelayMicros}
   f =
     JWKCache.withJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl $
       f . ConfiguredStore settings
+withJWKStore
+  settings@StaticJWKSettings{staticJWK}
+  f =
+    f (ConfiguredStore settings staticJWK)
+withJWKStore
+  settings@TokenServerSettings{tokenServerUrl}
+  f =
+    f (ConfiguredStore settings tokenServerUrl)

@@ -2,7 +2,7 @@
 -- This module provides JWT Bearer authentication types for Yesod applications.
 module Web.Auth.Bearer.JWT.Yesod.Types
   ( JWTBearerAuthSettings (..)
-  , HasJWTBearerAuthSettings (..)
+  , HasConfiguredKeyStore (..)
   , ConfiguredStore (..)
   , settingsExpectedAudience
   ) where
@@ -58,5 +58,5 @@ settingsExpectedAudience = lens getter setter
 
 
 -- | Type class for extracting JWT Bearer auth settings from an application type
-class HasJWTBearerAuthSettings storeType a where
-  jwtBearerAuthSettingsL :: Lens' a (ConfiguredStore storeType)
+class HasConfiguredKeyStore storeType a where
+  configuredKeyStoreL :: Lens' a (ConfiguredStore storeType)

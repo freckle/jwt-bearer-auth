@@ -99,7 +99,6 @@ import Crypto.JWT
 import Data.Aeson
 import Data.Aeson.KeyMap
 import Web.Auth.Bearer.JWT.Yesod
-import Web.Auth.Bearer.JWT.Yesod.Lens
 import Yesod.Core
 ```
 
@@ -112,20 +111,18 @@ import System.Environment (getArgs)
 -->
 
 First, your `App` type (or, what Yesod also calls `site`) will need to be able to
-have a way to access the JWKStore itself, as well as the `JWTBearerAuthSettings`.
-This is done by providing a `lens` for each.
+have a way to access the `ConfiguredStore`. That's your source of public keys with which to verify
+bearer tokens, including any settings required to set it up.
+
+This is done by providing a `lens`.
 
 ```haskell
 data App = App
-  { appJWKCache :: JWKCache
-  , appJWTSettings :: JWTBearerAuthSettings
+  { appJWKCache :: ConfiguredStore JWKCache
   }
 
-instance HasJWKStore JWKCache App where
-  jwkStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
-
-instance HasJWTBearerAuthSettings App where
-  jwtBearerAuthSettingsL = lens appJWTSettings $ \app settings -> app {appJWTSettings = settings}
+instance HasConfiguredKeyStore JWKCache App where
+  configuredKeyStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
 ```
 
 `JWKCache`, provided by this library, provides the feature that I described in the Concepts section,
@@ -148,17 +145,17 @@ permission to make requests of you.
 loadApp :: (App -> IO ()) -> IO ()
 loadApp f = do
    -- (this is where you'd load all the other parts of your app also)
-   withJWKCache myJWTSettings $ \jwkCache ->
-      f App{appJWKCache = jwkCache, appJWTSettings = myJWTSettings}
+   withJWKStore myJWTSettings $ \configuredStore ->
+      f App{appJWKCache = configuredStore}
 
       where
         -- ten minutes
         myRefreshMicros = 10 * 60 * 10 ^ (6 :: Int)
         myServerUrl = "https://tokens.myapp.com"
-        myJWTSettings = JWTBearerAuthSettings
-          { jwtExpectedAudience = "elrond"
-          , jwtCacheRefreshDelayMicros = myRefreshMicros
-          , jwtTokenServerUrl = myServerUrl
+        myJWTSettings = JWKCacheSettings
+          { jwkCacheExpectedAudience = "elrond"
+          , jwkCacheRefreshDelayMicros = myRefreshMicros
+          , jwkCacheTokenServerUrl = myServerUrl
           }
 ```
 
@@ -242,11 +239,8 @@ newtype App2 = App2 { unApp2 :: App }
 appIso :: Iso' App2 App
 appIso = iso unApp2 App2
 
-instance HasJWKStore JWKCache App2 where
-  jwkStoreL = appIso . jwkStoreL
-
-instance HasJWTBearerAuthSettings App2 where
-  jwtBearerAuthSettingsL = appIso . jwtBearerAuthSettingsL
+instance HasConfiguredKeyStore JWKCache App2 where
+  configuredKeyStoreL = appIso . configuredKeyStoreL
 ```
 
 <!--
