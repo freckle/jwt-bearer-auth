@@ -140,13 +140,13 @@ withJWKStore
 withJWKStore
   settings@JWKCacheSettings {jwkCacheTokenServerUrl, jwkCacheRefreshDelayMicros}
   f =
-    JWKCache.withJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl $
-      f . ConfiguredStore settings
+    JWKCache.withJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl
+      $ f . ConfiguredStore settings
 withJWKStore
-  settings@StaticJWKSettings{staticJWK}
+  settings@StaticJWKSettings {staticJWK}
   f =
     f (ConfiguredStore settings staticJWK)
 withJWKStore
-  settings@TokenServerSettings{tokenServerUrl}
+  settings@TokenServerSettings {tokenServerUrl}
   f =
     f (ConfiguredStore settings tokenServerUrl)
