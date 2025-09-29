@@ -39,8 +39,8 @@ authorizeWithJWT
   :: forall e jwtType site
    . ( AsBearerAuthError e
      , AsError e
-     , AsJWTError e
      , AsJWKCacheError e
+     , AsJWTError e
      , FromJSON jwtType
      , HasClaimsSet jwtType
      , HasJWKCacheSettings site

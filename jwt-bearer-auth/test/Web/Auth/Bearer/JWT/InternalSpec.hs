@@ -21,7 +21,8 @@ spec = modifyMaxSuccess (`div` 7) $ parallel $ do
   describe "verifyTokenClaims" $ do
     prop "successfully validates valid token" $ do
       TestData {testJWK, testClaims, testSignedJWT, testAudience} <- generateTestData
-      eClaims <- verifyTestTokenClaims testJWK testAudience (encodeToStrict testSignedJWT)
+      eClaims <-
+        verifyTestTokenClaims testJWK testAudience (encodeToStrict testSignedJWT)
       eClaims `shouldBe` Right testClaims
 
     prop "rejects token with invalid signature (e.g. signed by a different key)" $ do

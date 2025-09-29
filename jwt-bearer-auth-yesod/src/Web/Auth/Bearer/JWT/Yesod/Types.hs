@@ -32,13 +32,13 @@ data JWKCacheSettings = JWKCacheSettings
   deriving stock (Eq, Show)
 
 settingsTokenServerUrl :: Lens' JWKCacheSettings TokenServerUrl
-settingsTokenServerUrl = lens jwkCacheTokenServerUrl $ \s url -> s { jwkCacheTokenServerUrl = url }
+settingsTokenServerUrl = lens jwkCacheTokenServerUrl $ \s url -> s {jwkCacheTokenServerUrl = url}
 
 settingsRefreshDelayMicros :: Lens' JWKCacheSettings Int
-settingsRefreshDelayMicros = lens jwkCacheRefreshDelayMicros $ \s delay -> s { jwkCacheRefreshDelayMicros = delay }
+settingsRefreshDelayMicros = lens jwkCacheRefreshDelayMicros $ \s delay -> s {jwkCacheRefreshDelayMicros = delay}
 
 settingsExpectedAudience :: Lens' JWKCacheSettings String
-settingsExpectedAudience = lens jwkCacheExpectedAudience $ \s aud -> s { jwkCacheExpectedAudience = aud }
+settingsExpectedAudience = lens jwkCacheExpectedAudience $ \s aud -> s {jwkCacheExpectedAudience = aud}
 
 -- | Type class for extracting JWT Bearer auth settings from an application type
 class HasJWKCacheSettings a where
