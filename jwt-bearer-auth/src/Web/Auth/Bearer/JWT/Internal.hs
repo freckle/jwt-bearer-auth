@@ -111,8 +111,6 @@ instance
     matchesKid :: JWK -> Bool
     matchesKid key = h ^? kid . _Just . param == key ^. jwkKid
 
--- Fetch JWKs from the token server
--- in reality, this should be cached
 fetchJWKs
   :: MonadIO m
   => TokenServerUrl
