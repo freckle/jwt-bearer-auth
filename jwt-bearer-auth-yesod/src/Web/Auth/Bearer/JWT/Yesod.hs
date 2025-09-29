@@ -26,6 +26,7 @@ import Network.Wai.Lens
 import Web.Auth.Bearer.JWT
 import Web.Auth.Bearer.JWT.Cache hiding (withJWKCache)
 import qualified Web.Auth.Bearer.JWT.Cache as JWKCache
+import Web.Auth.Bearer.JWT.Claims
 import Web.Auth.Bearer.JWT.Yesod.Lens
 import Web.Auth.Bearer.JWT.Yesod.Types
 import Yesod.Core
@@ -35,16 +36,15 @@ import Yesod.Core.Types.Lens
 -- | JWT-based authorization for Yesod applications.
 -- Extracts bearer token from request, verifies it using the app's JWK store.
 authorizeWithJWT
-  :: forall e jwtType site
+  :: forall e extraClaims site
    . ( AsBearerAuthError e
      , AsError e
      , AsJWKCacheError e
      , AsJWTError e
-     , FromJSON jwtType
-     , HasClaimsSet jwtType
+     , FromJSON extraClaims
      , HasJWKCacheSettings site
      )
-  => (Either e jwtType -> HandlerFor site AuthResult)
+  => (Either e (JWTClaims extraClaims) -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 authorizeWithJWT authFunc = do
@@ -80,16 +80,15 @@ type AuthError = BearerAuthError JWTError
 type CacheAuthError = JWKCacheError AuthError
 
 isAuthorizedJWKCache
-  :: forall jwtType site
-   . ( FromJSON jwtType
-     , HasClaimsSet jwtType
+  :: forall extraClaims site
+   . ( FromJSON extraClaims
      , HasJWKCacheSettings site
      )
-  => (jwtType -> HandlerFor site AuthResult)
+  => (JWTClaims extraClaims -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 isAuthorizedJWKCache f = do
-  authorizeWithJWT @CacheAuthError @jwtType @site
+  authorizeWithJWT @CacheAuthError
     (either handleCacheErrors f)
 
 -- | orphan instance to make runExceptT work.

@@ -107,7 +107,6 @@ tests:
     main: README.lhs
     ghc-options: -pgmL markdown-unlit
     dependencies:
-      - jose
       - jwt-bearer-auth
       - jwt-bearer-auth-yesod
       - lens

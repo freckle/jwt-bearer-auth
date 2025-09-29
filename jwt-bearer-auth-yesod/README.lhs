@@ -98,7 +98,6 @@ module Main ( main ) where
 import Prelude
 
 import Control.Lens
-import Crypto.JWT
 import Web.Auth.Bearer.JWT.Claims
 import Web.Auth.Bearer.JWT.Yesod
 import Yesod.Core
@@ -178,7 +177,7 @@ instance Yesod App where
   -- ...(other methods)
 
   isAuthorized :: Route App -> Bool -> HandlerFor App AuthResult
-  isAuthorized _route _isWrite = isAuthorizedJWKCache $ \(_ :: ClaimsSet) ->
+  isAuthorized _route _isWrite = isAuthorizedJWKCache $ \(_jwt :: JWTClaims ()) ->
       pure Authorized
 ```
 
@@ -193,10 +192,16 @@ decoded payload for you to look at and decide if the request is allowed.
 Now, you will almost certainly want to actually inspect the fields on the payload when making your
 decision. The `ClaimsSet` type in the `jose` library ONLY supports the claims that are required by
 the RFC for JWTs, but you can extend them with more fields. The supported way to do that is by
-providing your own data type that contains a `ClaimsSet` and provide a lens to focus on that
-`ClaimsSet`. You will also need a `FromJSON` instance; you would also need a `ToJSON` instance if
+providing your own data type that implements `HasClaimsSet`, providing a lens to focus on that
+`ClaimsSet`. Anything that has an instance of `HasClaimsSet` also has lenses for each individual
+claim: `claimAud`, `claimIss`, `claimSub`, etc. This library provides a general wrapper for this,
+`JWTClaims extraClaims`, where `extraClaims` is whatever claims you want in your app.
+
+Your `extraClaims` needs a `FromJSON` instance; you would also need a `ToJSON` instance if
 you were doing the signing, but we're only going to be validating ones that have already been
-signed. Here is an example (that's already provided for you in `Web.Auth.Bearer.JWT.Claims`):
+signed. Here is an example of a type that's already provided for you in
+`Web.Auth.Bearer.JWT.Claims`, that adds a single extra claim called `scp` that's a list of strings.
+Use this as a template if you need to implement your own, additional claims.
 
 <!--
 the below example should show up in the README but NOT be compiled with the literate code.
@@ -207,34 +212,15 @@ By using CPP instead of commenting out, it will still show up with the right syn
 -->
 
 ```haskell
-data JWTClaims extra = JWTClaims ClaimsSet extra
-  deriving stock (Eq, Show)
-
-claimsExtra :: Lens (JWTClaims e1) (JWTClaims e2) e1 e2
-claimsExtra = lens (\(JWTClaims _ e) -> e) (\(JWTClaims c _) e -> JWTClaims c e)
-
-instance FromJSON extra => FromJSON (JWTClaims extra) where
-  parseJSON = withObject "JWTClaims" $ \v ->
-    JWTClaims
-      <$> parseJSON (Object v)
-      <*> parseJSON (Object v)
-
-instance ToJSON extra => ToJSON (JWTClaims extra) where
-  toJSON (JWTClaims claims extra) =
-    let ~(Object jsonClaims) = toJSON claims
-        ~(Object jsonExtra) = toJSON extra
-     in Object (jsonExtra `union` jsonClaims)
-
-instance HasClaimsSet (JWTClaims extra) where
-  claimsSet = lens (\(JWTClaims c _) -> c) (\(JWTClaims _ e) c -> JWTClaims c e)
-
--- | This "extends" the base '@ClaimsSet@' type by adding an additional "scp"
---   claim. The ToJSON and FromJSON instances put the "scp" field alongside all
---   the other fields in the object, not using a separate sub-object.
 data ScpClaims = ScpClaims
   { scp :: [String]
   }
   deriving stock (Eq, Show)
+  -- derive anyclass, not derive newtype! it needs to serialize as an Object with the field name
+  -- i.e. {"scp": ["scp1", "scp2"]}
+  deriving anyclass (FromJSON, ToJSON)
+
+-- (optional) some lenses you can use to peek at the claims.
 
 class HasScp a where
   claimScp :: Lens' a [String]
@@ -244,6 +230,11 @@ instance HasScp ScpClaims where
 
 instance HasScp extra => HasScp (JWTClaims extra) where
   claimScp = claimsExtra . claimScp
+
+-- you can also use the lenses from `HasClaimsSet`:
+
+getAudience :: JWTClaims ScpClaims -> [String]
+getAudience = claimAud
 ```
 
 <!--

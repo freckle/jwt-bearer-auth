@@ -18,7 +18,7 @@ spec = modifyMaxSuccess (`div` 7) $ parallel $ do
       testJWK <- generateJWK
       testAudience <- generateAudience
       let jwkSet = JWKSet (testJWK : otherJWKs)
-      withJWKCacheFrom (pureJWKCache jwkSet) $ \jwkCache -> do
+      withJWKCacheFrom (makeStaticTestCache jwkSet) $ \jwkCache -> do
         testClaims <- generateClaimsSet testAudience
         inputJWT <- signTestJWT testJWK testClaims
         eVerifiedClaims <-
@@ -29,7 +29,7 @@ spec = modifyMaxSuccess (`div` 7) $ parallel $ do
     prop "with test JWK set" $ do
       testJWK <- generateJWK
       testAudience <- generateAudience
-      withJWKCacheFrom (pureJWKCache mempty) $ \jwkCache -> do
+      withJWKCacheFrom (makeStaticTestCache mempty) $ \jwkCache -> do
         testClaims <- generateClaimsSet testAudience
         inputJWT <- signTestJWT testJWK testClaims
         eVerifiedClaims <-

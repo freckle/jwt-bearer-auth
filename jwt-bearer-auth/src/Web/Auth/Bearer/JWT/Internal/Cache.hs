@@ -23,7 +23,7 @@ import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger.Aeson
 import Crypto.JOSE
 import Data.Cache.Polling
-import UnliftIO (MonadIO (..), MonadUnliftIO (..))
+import UnliftIO (MonadIO (..), MonadUnliftIO (..), liftIO)
 import UnliftIO.Exception (bracket)
 import Web.Auth.Bearer.JWT.Internal
 

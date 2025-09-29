@@ -6,6 +6,7 @@ module Web.Auth.Bearer.JWT.Cache
   , JWKCache
   , killJWKCache
   , withJWKCache
+  , withJWKCacheFrom
   , JWKCacheError (..)
   , AsJWKCacheError (..)
   , NoKeysInCacheException (..)

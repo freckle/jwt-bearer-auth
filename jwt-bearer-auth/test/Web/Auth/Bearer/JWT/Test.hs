@@ -7,10 +7,9 @@ module Web.Auth.Bearer.JWT.Test
   , generateJWK
   , generateJWKSet
   , generateTestData
-  , pureJWKCache
+  , makeStaticTestCache
   , runJOSENoLogging
   , signTestJWT
-  , testJWKCache
   , verifyTestTokenClaims
   ) where
 
@@ -23,15 +22,14 @@ import Control.Monad.Logger.Aeson (NoLoggingT (..))
 import Crypto.JOSE
 import Crypto.JWT
 import qualified Data.ByteString as BS
-import Data.Cache.Polling hiding (currentTime)
 import Data.String (fromString)
 import qualified Data.Text as T
 import Data.Time (addUTCTime, getCurrentTime, secondsToNominalDiffTime)
 import System.Random (randomIO)
 import Test.QuickCheck
-import UnliftIO (liftIO)
+import UnliftIO (MonadUnliftIO, liftIO)
 import Web.Auth.Bearer.JWT
-import Web.Auth.Bearer.JWT.Internal.Cache
+import Web.Auth.Bearer.JWT.Cache
 
 -- * Type Definitions
 
@@ -56,29 +54,16 @@ instance Arbitrary TestAudience where
 
 -- * Cache Utilities
 
-testJWKCache
-  :: MonadCache m
-  => CacheOptions JWKSet
-  -> m JWKSet
-  -> m JWKCache
-testJWKCache opts mjwkset = JWKCache <$> newPollingCache opts mjwkset
-
-pureJWKCache
-  :: MonadCache m
+makeStaticTestCache
+  :: MonadUnliftIO m
   => JWKSet
   -> m JWKCache
-pureJWKCache jwks = do
-  cache <-
-    testJWKCache
-      (basicOptions (DelayForMicroseconds (secondsToMicros 10)) Ignore)
-      (pure jwks)
+makeStaticTestCache jwks = do
+  cache <- staticJWKCache jwks
   -- unfortunately the first load to the cache is asynchronous, doesn't happen
   -- until the background thread starts. So I guess we just gotta wait
-  liftIO $ threadDelay (millisToMicros 10)
+  liftIO $ threadDelay (10 * 1000)
   pure cache
- where
-  secondsToMicros secs = secs * 10 ^ (6 :: Int)
-  millisToMicros millis = millis * 10 ^ (3 :: Int)
 
 -- * JOSE Utilities
 
