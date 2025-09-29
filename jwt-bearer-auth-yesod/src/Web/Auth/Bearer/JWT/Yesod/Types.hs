@@ -5,6 +5,8 @@ module Web.Auth.Bearer.JWT.Yesod.Types
   , HasConfiguredKeyStore (..)
   , ConfiguredStore (..)
   , settingsExpectedAudience
+  , settingsTokenServerUrl
+  , settingsRefreshDelayMicros
   ) where
 
 import Prelude
@@ -42,6 +44,18 @@ data JWTBearerAuthSettings storeType where
        , staticJWK :: JWK
        }
     -> JWTBearerAuthSettings JWK
+
+settingsTokenServerUrl :: Traversal' (JWTBearerAuthSettings s) TokenServerUrl
+settingsTokenServerUrl f s = case s of
+  StaticJWKSettings _ _ -> pure s
+  TokenServerSettings aud url -> TokenServerSettings aud <$> f url
+  JWKCacheSettings aud delay url -> JWKCacheSettings aud delay <$> f url
+
+settingsRefreshDelayMicros :: Traversal' (JWTBearerAuthSettings s) Int
+settingsRefreshDelayMicros f s = case s of
+  StaticJWKSettings{} -> pure s
+  TokenServerSettings{} -> pure s
+  JWKCacheSettings aud delay url -> flip (JWKCacheSettings aud) url <$> f delay
 
 settingsExpectedAudience :: Lens' (JWTBearerAuthSettings storeType) String
 settingsExpectedAudience = lens getter setter
