@@ -81,23 +81,25 @@ Ok, let's write some code now.
 
 First, some imports.
 
+<!--
+```haskell
+{-# LANGUAGE CPP #-}
+```
+-->
+
 ```haskell
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# OPTIONS_GHC -pgmL markdown-unlit #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# OPTIONS_GHC -Wno-unused-packages #-}
 module Main ( main ) where
 
 import Prelude
 
 import Control.Lens
 import Crypto.JWT
-import Data.Aeson
-import Data.Aeson.KeyMap
+import Web.Auth.Bearer.JWT.Claims
 import Web.Auth.Bearer.JWT.Yesod
 import Yesod.Core
 ```
@@ -127,9 +129,7 @@ instance HasJWKCacheSettings App where
 
 `JWKCache`, provided by this library, provides the feature that I described in the Concepts section,
 where (given a URL and a refresh time in microseconds) it loads up the public keys on a background
-thread. Other options for a "JWK Store" include a `TokenServerUrl`, which will load the keys every
-time you try to use it instead of in the background, or even a static `JWK` if you want to just have
-a static one that's hardcoded. `JWKCache` is the recommended choice for production applications.
+thread.
 
 You will, of course, also need to construct the cache while constructing your application. This is
 done with a CPS function to ensure that the cache thread is properly shut down at the end of
@@ -194,41 +194,63 @@ Now, you will almost certainly want to actually inspect the fields on the payloa
 decision. The `ClaimsSet` type in the `jose` library ONLY supports the claims that are required by
 the RFC for JWTs, but you can extend them with more fields. The supported way to do that is by
 providing your own data type that contains a `ClaimsSet` and provide a lens to focus on that
-`ClaimsSet`. For an example, see `Web.Auth.Bearer.JWT.Claims`. You will also need a `FromJSON`
-instance (you would also need a `ToJSON` instance if you were doing the signing, but we're only
-going to be validating ones that have already been signed.)
+`ClaimsSet`. You will also need a `FromJSON` instance (you would also need a `ToJSON` instance if
+you were doing the signing, but we're only going to be validating ones that have already been
+signed. Here is an example (that's already provided for you in `Web.Auth.Bearer.JWT.Claims`):
+
+<!--
+the below example should show up in the README but NOT be compiled with the literate code.
+By using CPP instead of commenting out, it will still show up with the right syntax highlighting.
+```haskell
+#if 0
+```
+-->
 
 ```haskell
-data ClaimsWithScope a = ClaimsWithScope [String] a
-  deriving stock (Show, Eq)
+data JWTClaims extra = JWTClaims ClaimsSet extra
+  deriving stock (Eq, Show)
 
-instance FromJSON a => FromJSON (ClaimsWithScope a) where
-  parseJSON = withObject "ClaimsWithScope" $ \v ->
-    ClaimsWithScope
-      <$> (concat <$> v .:? "scp")
-      <*> parseJSON (Object (delete "scp" v))
+claimsExtra :: Lens (JWTClaims e1) (JWTClaims e2) e1 e2
+claimsExtra = lens (\(JWTClaims _ e) -> e) (\(JWTClaims c _) e -> JWTClaims c e)
 
-instance ToJSON a => ToJSON (ClaimsWithScope a) where
-  toJSON (ClaimsWithScope claims scp) =
-    let ~(Object o) = toJSON claims
-     in Object $ insert "scp" (toJSON scp) o
+instance FromJSON extra => FromJSON (JWTClaims extra) where
+  parseJSON = withObject "JWTClaims" $ \v ->
+    JWTClaims
+      <$> parseJSON (Object v)
+      <*> parseJSON (Object v)
 
-instance HasClaimsSet a => HasClaimsSet (ClaimsWithScope a) where
-  claimsSet = myClaimsSet . claimsSet
-    where
-      myClaimsSet = lens getter setter
-      getter (ClaimsWithScope _ claims) = claims
-      setter (ClaimsWithScope scp _) claims = ClaimsWithScope scp claims
+instance ToJSON extra => ToJSON (JWTClaims extra) where
+  toJSON (JWTClaims claims extra) =
+    let ~(Object jsonClaims) = toJSON claims
+        ~(Object jsonExtra) = toJSON extra
+     in Object (jsonExtra `union` jsonClaims)
+
+instance HasClaimsSet (JWTClaims extra) where
+  claimsSet = lens (\(JWTClaims c _) -> c) (\(JWTClaims _ e) c -> JWTClaims c e)
+
+-- | This "extends" the base '@ClaimsSet@' type by adding an additional "scp"
+--   claim. The ToJSON and FromJSON instances put the "scp" field alongside all
+--   the other fields in the object, not using a separate sub-object.
+data ScpClaims = ScpClaims
+  { scp :: [String]
+  }
+  deriving stock (Eq, Show)
 
 class HasScp a where
   claimScp :: Lens' a [String]
 
-instance HasScp (ClaimsWithScope a) where
-  claimScp = lens getter setter
-    where
-      getter (ClaimsWithScope scp _) = scp
-      setter (ClaimsWithScope _ claims) scp = ClaimsWithScope scp claims
+instance HasScp ScpClaims where
+  claimScp = lens scp (const ScpClaims)
+
+instance HasScp extra => HasScp (JWTClaims extra) where
+  claimScp = claimsExtra . claimScp
 ```
+
+<!--
+```haskell
+#endif
+```
+-->
 
 Now we're ready to authorize requests based on the `scp` claim!
 
@@ -256,7 +278,7 @@ instance YesodDispatch App2 where
 ```haskell
 instance Yesod App2 where
   isAuthorized :: Route App2 -> Bool -> HandlerFor App2 AuthResult
-  isAuthorized _route isWrite = isAuthorizedJWKCache $ \(jwt :: ClaimsWithScope ClaimsSet) ->
+  isAuthorized _route isWrite = isAuthorizedJWKCache $ \(jwt :: JWTClaims ScpClaims) ->
     let requiredScp = if isWrite then "myapp:write" else "myapp:read"
      in if requiredScp `elem` jwt ^. claimScp
             then pure Authorized
