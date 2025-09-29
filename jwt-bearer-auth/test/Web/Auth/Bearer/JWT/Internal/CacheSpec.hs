@@ -23,7 +23,7 @@ spec = modifyMaxSuccess (`div` 7) $ parallel $ do
         inputJWT <- signTestJWT testJWK testClaims
         eVerifiedClaims <-
           verifyTestTokenClaims jwkCache testAudience (encodeToStrict inputJWT)
-        eVerifiedClaims ^? _Right `shouldBe` Just testClaims
+        eVerifiedClaims `shouldBe` Right testClaims
 
   describe "empty JWK cache" $ do
     prop "with test JWK set" $ do
