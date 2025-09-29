@@ -1,5 +1,8 @@
 module Web.Auth.Bearer.JWT.Cache
   ( newJWKCache
+  , newJWKCacheWith
+  , staticJWKCache
+  , emptyJWKCache
   , JWKCache
   , killJWKCache
   , withJWKCache

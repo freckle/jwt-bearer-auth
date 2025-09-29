@@ -3,6 +3,9 @@
 
 module Web.Auth.Bearer.JWT.Internal.Cache
   ( newJWKCache
+  , newJWKCacheWith
+  , staticJWKCache
+  , emptyJWKCache
   , JWKCache (..)
   , JWKCacheError (..)
   , AsJWKCacheError (..)
@@ -20,7 +23,7 @@ import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger.Aeson
 import Crypto.JOSE
 import Data.Cache.Polling
-import UnliftIO (MonadIO (..), MonadUnliftIO)
+import UnliftIO (MonadIO (..), MonadUnliftIO (..))
 import UnliftIO.Exception (bracket)
 import Web.Auth.Bearer.JWT.Internal
 
@@ -30,15 +33,38 @@ jwkCacheOptions :: Int -> CacheOptions JWKSet
 jwkCacheOptions delayMicros =
   basicOptions (DelayForMicroseconds delayMicros) Ignore
 
+-- | Create a JWK cache with custom cache options and fetch action
+newJWKCacheWith
+  :: MonadUnliftIO m
+  => CacheOptions JWKSet
+  -> m JWKSet
+  -> m JWKCache
+newJWKCacheWith opts fetchAction =
+  withRunInIO $ \runInIO ->
+    JWKCache <$> newPollingCache opts (runInIO fetchAction)
+
 newJWKCache
-  :: MonadIO m
+  :: MonadUnliftIO m
   => Int
   -- ^ delay in microseconds between refreshes
   -> TokenServerUrl
   -> m JWKCache
 newJWKCache delayMicros tUrl =
-  liftIO
-    $ JWKCache <$> newPollingCache (jwkCacheOptions delayMicros) (fetchJWKs tUrl)
+  newJWKCacheWith (jwkCacheOptions delayMicros) (fetchJWKs tUrl)
+
+-- | Create a JWK cache that always returns the same static JWKSet
+staticJWKCache
+  :: MonadUnliftIO m
+  => JWKSet
+  -> m JWKCache
+staticJWKCache jwkSet =
+  newJWKCacheWith (jwkCacheOptions (10 * 1000000)) (pure jwkSet)
+
+-- | Create a JWK cache that always returns an empty JWKSet
+emptyJWKCache
+  :: MonadUnliftIO m
+  => m JWKCache
+emptyJWKCache = staticJWKCache mempty
 
 killJWKCache
   :: MonadIO m
