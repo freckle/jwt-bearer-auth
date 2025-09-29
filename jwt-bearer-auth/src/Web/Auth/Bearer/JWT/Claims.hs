@@ -30,9 +30,11 @@ instance FromJSON extra => FromJSON (JWTClaims extra) where
 
 instance ToJSON extra => ToJSON (JWTClaims extra) where
   toJSON (JWTClaims claims extra) =
-    let ~(Object jsonClaims) = toJSON claims
-        ~(Object jsonExtra) = toJSON extra
-     in Object (jsonExtra `union` jsonClaims)
+    let
+      ~(Object jsonClaims) = toJSON claims
+      ~(Object jsonExtra) = toJSON extra
+    in
+      Object (jsonExtra `union` jsonClaims)
 
 instance HasClaimsSet (JWTClaims extra) where
   claimsSet = lens (\(JWTClaims c _) -> c) (\(JWTClaims _ e) c -> JWTClaims c e)
@@ -43,8 +45,8 @@ instance HasClaimsSet (JWTClaims extra) where
 data ScpClaims = ScpClaims
   { scp :: [String]
   }
-  deriving stock (Eq, Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving stock (Eq, Generic, Show)
+  deriving anyclass (FromJSON, ToJSON)
 
 class HasScp a where
   claimScp :: Lens' a [String]
