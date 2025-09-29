@@ -194,7 +194,7 @@ Now, you will almost certainly want to actually inspect the fields on the payloa
 decision. The `ClaimsSet` type in the `jose` library ONLY supports the claims that are required by
 the RFC for JWTs, but you can extend them with more fields. The supported way to do that is by
 providing your own data type that contains a `ClaimsSet` and provide a lens to focus on that
-`ClaimsSet`. You will also need a `FromJSON` instance (you would also need a `ToJSON` instance if
+`ClaimsSet`. You will also need a `FromJSON` instance; you would also need a `ToJSON` instance if
 you were doing the signing, but we're only going to be validating ones that have already been
 signed. Here is an example (that's already provided for you in `Web.Auth.Bearer.JWT.Claims`):
 
