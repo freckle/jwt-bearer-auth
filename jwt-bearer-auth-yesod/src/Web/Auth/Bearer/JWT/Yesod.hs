@@ -27,7 +27,6 @@ import Web.Auth.Bearer.JWT
 import Web.Auth.Bearer.JWT.Cache hiding (withJWKCache)
 import qualified Web.Auth.Bearer.JWT.Cache as JWKCache
 import Web.Auth.Bearer.JWT.Claims
-import Web.Auth.Bearer.JWT.Yesod.Lens
 import Web.Auth.Bearer.JWT.Yesod.Types
 import Yesod.Core
 import Yesod.Core.Types (HandlerData, HandlerFor (..))
@@ -48,8 +47,9 @@ authorizeWithJWT
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 authorizeWithJWT authFunc = do
-  (CacheWithSettings settings jwkCache) <- view handlerCacheWithSettingsL
-  req <- view (handlerRequestL . reqWaiRequestL)
+  (CacheWithSettings settings jwkCache) <-
+    view $ handlerEnvL . rheSiteL . jwkCacheSettingsL
+  req <- view $ handlerRequestL . reqWaiRequestL
   eJWT <-
     runExceptT
       $ maybe
