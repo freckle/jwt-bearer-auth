@@ -42,7 +42,7 @@ instance HasClaimsSet (JWTClaims extra) where
 -- | This "extends" the base '@ClaimsSet@' type by adding an additional "scp"
 --   claim. The ToJSON and FromJSON instances put the "scp" field alongside all
 --   the other fields in the object, not using a separate sub-object.
-data ScpClaims = ScpClaims
+newtype ScpClaims = ScpClaims
   { scp :: [String]
   }
   deriving stock (Eq, Generic, Show)
