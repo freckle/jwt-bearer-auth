@@ -40,3 +40,16 @@ spec = modifyMaxSuccess (`div` 7) $ parallel $ do
         if signingKey ^. jwkMaterial == verifyingKey ^. jwkMaterial
           then eClaims `shouldBe` Right expectedClaims
           else eClaims `shouldBe` Left (_JWTError . _Error # JWSInvalidSignature)
+
+    modifyMaxSuccess (* 3) $ prop "rejects token with wrong audience"
+      $ \(TestJWK theJWK) (TestAudience expectedAud) (TestAudience actualAud) ->
+        do
+          Right badJWT :: Either (AuthError JWTError) SignedJWT <-
+            makeSignedTestJWT theJWK actualAud
+          eClaims :: Either (AuthError JWTError) ClaimsSet <- runJOSENoLogging $ verifyTokenClaims theJWK expectedAud (encodeToStrict badJWT)
+          Right expectedClaims :: Either (AuthError JWTError) ClaimsSet <-
+            runJOSENoLogging $ unsafeGetJWTClaimsSet badJWT
+
+          if expectedAud == actualAud
+            then eClaims `shouldBe` Right expectedClaims
+            else eClaims `shouldBe` Left (_JWTError # JWTNotInAudience)
