@@ -21,7 +21,6 @@ dependencies:
   - jose >= 0.12
   - lens
   - monad-logger-aeson
-  - polling-cache
   - text
   - unliftio
 
@@ -85,6 +84,7 @@ library:
     - http-conduit
     - monad-time
     - mtl
+    - polling-cache
 
 tests:
   jwt-bearer-auth-test:
