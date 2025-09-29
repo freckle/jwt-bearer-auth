@@ -139,10 +139,13 @@ withJWKStore
   -> m a
 withJWKStore settings f =
   case settings of
+
     JWKCacheSettings {jwkCacheTokenServerUrl, jwkCacheRefreshDelayMicros} ->
       JWKCache.withJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl
         $ f . ConfiguredStore settings
+
     StaticJWKSettings {staticJWK} ->
-      f (ConfiguredStore settings staticJWK)
+      f $ ConfiguredStore settings staticJWK
+
     TokenServerSettings {tokenServerUrl} ->
-      f (ConfiguredStore settings tokenServerUrl)
+      f $ ConfiguredStore settings tokenServerUrl
