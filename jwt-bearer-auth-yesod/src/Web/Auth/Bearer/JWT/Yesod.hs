@@ -137,16 +137,12 @@ withJWKStore
   => JWTBearerAuthSettings store
   -> (ConfiguredStore store -> m a)
   -> m a
-withJWKStore
-  settings@JWKCacheSettings {jwkCacheTokenServerUrl, jwkCacheRefreshDelayMicros}
-  f =
-    JWKCache.withJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl
-      $ f . ConfiguredStore settings
-withJWKStore
-  settings@StaticJWKSettings {staticJWK}
-  f =
-    f (ConfiguredStore settings staticJWK)
-withJWKStore
-  settings@TokenServerSettings {tokenServerUrl}
-  f =
-    f (ConfiguredStore settings tokenServerUrl)
+withJWKStore settings f =
+  case settings of
+    JWKCacheSettings {jwkCacheTokenServerUrl, jwkCacheRefreshDelayMicros} ->
+      JWKCache.withJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl
+        $ f . ConfiguredStore settings
+    StaticJWKSettings {staticJWK} ->
+      f (ConfiguredStore settings staticJWK)
+    TokenServerSettings {tokenServerUrl} ->
+      f (ConfiguredStore settings tokenServerUrl)
