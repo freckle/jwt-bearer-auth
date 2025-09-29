@@ -53,8 +53,8 @@ settingsTokenServerUrl f s = case s of
 
 settingsRefreshDelayMicros :: Traversal' (JWTBearerAuthSettings s) Int
 settingsRefreshDelayMicros f s = case s of
-  StaticJWKSettings{} -> pure s
-  TokenServerSettings{} -> pure s
+  StaticJWKSettings {} -> pure s
+  TokenServerSettings {} -> pure s
   JWKCacheSettings aud delay url -> flip (JWKCacheSettings aud) url <$> f delay
 
 settingsExpectedAudience :: Lens' (JWTBearerAuthSettings storeType) String

@@ -98,4 +98,5 @@ tests:
       - hspec
       - jwt-bearer-auth
       - QuickCheck
+      - random
       - time
