@@ -111,18 +111,18 @@ import System.Environment (getArgs)
 -->
 
 First, your `App` type (or, what Yesod also calls `site`) will need to be able to
-have a way to access the `ConfiguredStore`. That's your source of public keys with which to verify
+have a way to access the `CacheWithSettings`. That's your source of public keys with which to verify
 bearer tokens, including any settings required to set it up.
 
 This is done by providing a `lens`.
 
 ```haskell
 data App = App
-  { appJWKCache :: ConfiguredStore JWKCache
+  { appJWKCache :: CacheWithSettings
   }
 
-instance HasConfiguredKeyStore JWKCache App where
-  configuredKeyStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
+instance HasJWKCacheSettings App where
+  jwkCacheSettingsL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
 ```
 
 `JWKCache`, provided by this library, provides the feature that I described in the Concepts section,
@@ -145,8 +145,8 @@ permission to make requests of you.
 loadApp :: (App -> IO ()) -> IO ()
 loadApp f = do
    -- (this is where you'd load all the other parts of your app also)
-   withJWKStore myJWTSettings $ \configuredStore ->
-      f App{appJWKCache = configuredStore}
+   withCacheSettings myJWTSettings $ \cacheStore ->
+      f App{appJWKCache = cacheStore}
 
       where
         -- ten minutes
@@ -239,8 +239,8 @@ newtype App2 = App2 { unApp2 :: App }
 appIso :: Iso' App2 App
 appIso = iso unApp2 App2
 
-instance HasConfiguredKeyStore JWKCache App2 where
-  configuredKeyStoreL = appIso . configuredKeyStoreL
+instance HasJWKCacheSettings App2 where
+  jwkCacheSettingsL = appIso . jwkCacheSettingsL
 ```
 
 <!--

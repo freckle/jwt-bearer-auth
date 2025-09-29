@@ -1,4 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -8,11 +7,10 @@
 module Web.Auth.Bearer.JWT.Yesod
   ( authorizeWithJWT
   , isAuthorizedJWKCache
-  , isAuthorizedJWKDefault
   , handleCacheErrors
   , handleDefaultErrors
   , JWKCache
-  , withJWKStore
+  , withCacheSettings
   , module Web.Auth.Bearer.JWT.Yesod.Types
   ) where
 
@@ -22,14 +20,9 @@ import Control.Lens
 import Control.Monad (when)
 import Control.Monad.Catch (throwM)
 import Control.Monad.Error.Lens (throwing_)
-import Control.Monad.Except (ExceptT, runExceptT)
+import Control.Monad.Except (runExceptT)
 import Control.Monad.Reader (ReaderT (..))
 import Control.Monad.Time (MonadTime)
-import Crypto.JOSE
-  ( JWSHeader
-  , RequiredProtection
-  , VerificationKeyStore
-  )
 import Network.Wai.Lens
 import Web.Auth.Bearer.JWT
 import Web.Auth.Bearer.JWT.Cache hiding (withJWKCache)
@@ -43,31 +36,26 @@ import Yesod.Core.Types.Lens
 -- | JWT-based authorization for Yesod applications.
 -- Extracts bearer token from request, verifies it using the app's JWK store.
 authorizeWithJWT
-  :: forall e store jwtType site
+  :: forall e jwtType site
    . ( AsBearerAuthError e
      , AsError e
      , AsJWTError e
+     , AsJWKCacheError e
      , FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasConfiguredKeyStore store site
-     , VerificationKeyStore
-         (ExceptT e (HandlerFor site))
-         (JWSHeader RequiredProtection)
-         jwtType
-         store
+     , HasJWKCacheSettings site
      )
   => (Either e jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 authorizeWithJWT authFunc = do
-  (ConfiguredStore settings jwkStore) <-
-    view (handlerConfiguredKeyStoreL @store)
+  (CacheWithSettings settings jwkCache) <- view handlerCacheWithSettingsL
   req <- view (handlerRequestL . reqWaiRequestL)
   eJWT <-
     runExceptT
       $ maybe
         (throwing_ _NoBearerToken)
-        (verifyTokenClaims jwkStore (settings ^. settingsExpectedAudience))
+        (verifyTokenClaims jwkCache (settings ^. settingsExpectedAudience))
         (preview (authorizationHeaderL . _Just . bearerTokenP) req)
   authFunc eJWT
 
@@ -96,32 +84,14 @@ isAuthorizedJWKCache
   :: forall jwtType site
    . ( FromJSON jwtType
      , HasClaimsSet jwtType
-     , HasConfiguredKeyStore JWKCache site
+     , HasJWKCacheSettings site
      )
   => (jwtType -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 isAuthorizedJWKCache f = do
-  authorizeWithJWT @CacheAuthError @JWKCache @jwtType @site
+  authorizeWithJWT @CacheAuthError @jwtType @site
     (either handleCacheErrors f)
-
-isAuthorizedJWKDefault
-  :: forall jwtType store site
-   . ( FromJSON jwtType
-     , HasClaimsSet jwtType
-     , HasConfiguredKeyStore store site
-     , VerificationKeyStore
-         (ExceptT AuthError (HandlerFor site))
-         (JWSHeader RequiredProtection)
-         jwtType
-         store
-     )
-  => (jwtType -> HandlerFor site AuthResult)
-  -- ^ Authorization function that handles JWT verification result
-  -> HandlerFor site AuthResult
-isAuthorizedJWKDefault f = do
-  authorizeWithJWT @AuthError @store @jwtType @site
-    (either handleDefaultErrors f)
 
 -- | orphan instance to make runExceptT work.
 --   if '(@HandlerFor@ site)' was a monad transformer, then it would
@@ -132,20 +102,13 @@ deriving via
   instance
     MonadTime (HandlerFor site)
 
-withJWKStore
+withCacheSettings
   :: MonadUnliftIO m
-  => JWTBearerAuthSettings store
-  -> (ConfiguredStore store -> m a)
+  => JWKCacheSettings
+  -> (CacheWithSettings -> m a)
   -> m a
-withJWKStore settings f =
-  case settings of
-
-    JWKCacheSettings {jwkCacheTokenServerUrl, jwkCacheRefreshDelayMicros} ->
-      JWKCache.withJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl
-        $ f . ConfiguredStore settings
-
-    StaticJWKSettings {staticJWK} ->
-      f $ ConfiguredStore settings staticJWK
-
-    TokenServerSettings {tokenServerUrl} ->
-      f $ ConfiguredStore settings tokenServerUrl
+withCacheSettings settings f =
+  JWKCache.withJWKCache
+    (jwkCacheRefreshDelayMicros settings)
+    (jwkCacheTokenServerUrl settings)
+    $ f . CacheWithSettings settings
