@@ -1,0 +1,149 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.38.1.
+--
+-- see: https://github.com/sol/hpack
+
+name:           jwt-bearer-auth
+version:        0.0.0.0
+synopsis:       JWT bearer auth handling
+description:    See README
+category:       Web
+homepage:       https://github.com/freckle/jwt-bearer-auth#readme
+bug-reports:    https://github.com/freckle/jwt-bearer-auth/issues
+maintainer:     Freckle Education
+license:        BSD-3-Clause
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    package.yaml
+extra-doc-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/freckle/jwt-bearer-auth
+
+library
+  exposed-modules:
+      Web.Auth.Bearer.JWT
+      Web.Auth.Bearer.JWT.Cache
+      Web.Auth.Bearer.JWT.Claims
+      Web.Auth.Bearer.JWT.Internal
+      Web.Auth.Bearer.JWT.Internal.Cache
+  other-modules:
+      Paths_jwt_bearer_auth
+  autogen-modules:
+      Paths_jwt_bearer_auth
+  hs-source-dirs:
+      src
+  default-extensions:
+      BangPatterns
+      DataKinds
+      DeriveAnyClass
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveLift
+      DeriveTraversable
+      DerivingStrategies
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      MultiParamTypeClasses
+      NoImplicitPrelude
+      NoMonomorphismRestriction
+      OverloadedStrings
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TypeApplications
+      TypeFamilies
+  ghc-options: -Weverything -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-missing-exported-signatures -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-safe -Wno-unsafe
+  build-depends:
+      aeson
+    , base >=4.9 && <5
+    , bytestring
+    , http-conduit
+    , jose >=0.12
+    , lens
+    , monad-logger-aeson
+    , monad-time
+    , mtl
+    , polling-cache
+    , text
+    , unliftio
+  default-language: Haskell2010
+  if impl(ghc >= 9.8)
+    ghc-options: -Wno-missing-role-annotations -Wno-missing-poly-kind-signatures
+  if impl(ghc >= 9.2)
+    ghc-options: -Wno-missing-kind-signatures
+  if impl(ghc >= 8.10)
+    ghc-options: -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module
+  if impl(ghc >= 8.8)
+    ghc-options: -fwrite-ide-info
+
+test-suite jwt-bearer-auth-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Web.Auth.Bearer.JWT.Internal.CacheSpec
+      Web.Auth.Bearer.JWT.InternalSpec
+      Web.Auth.Bearer.JWT.Test
+      Paths_jwt_bearer_auth
+  autogen-modules:
+      Paths_jwt_bearer_auth
+  hs-source-dirs:
+      test
+  default-extensions:
+      BangPatterns
+      DataKinds
+      DeriveAnyClass
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveLift
+      DeriveTraversable
+      DerivingStrategies
+      FlexibleContexts
+      FlexibleInstances
+      GADTs
+      GeneralizedNewtypeDeriving
+      LambdaCase
+      MultiParamTypeClasses
+      NoImplicitPrelude
+      NoMonomorphismRestriction
+      OverloadedStrings
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TypeApplications
+      TypeFamilies
+  ghc-options: -Weverything -Wno-all-missed-specialisations -Wno-missed-specialisations -Wno-missing-exported-signatures -Wno-missing-import-lists -Wno-missing-local-signatures -Wno-monomorphism-restriction -Wno-safe -Wno-unsafe -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      QuickCheck
+    , base >=4.9 && <5
+    , bytestring
+    , hspec
+    , jose >=0.12
+    , jwt-bearer-auth
+    , lens
+    , monad-logger-aeson
+    , random
+    , text
+    , time
+    , unliftio
+  default-language: Haskell2010
+  if impl(ghc >= 9.8)
+    ghc-options: -Wno-missing-role-annotations -Wno-missing-poly-kind-signatures
+  if impl(ghc >= 9.2)
+    ghc-options: -Wno-missing-kind-signatures
+  if impl(ghc >= 8.10)
+    ghc-options: -Wno-missing-safe-haskell-mode -Wno-prepositive-qualified-module
+  if impl(ghc >= 8.8)
+    ghc-options: -fwrite-ide-info

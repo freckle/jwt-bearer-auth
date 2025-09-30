@@ -4,4 +4,3 @@
 stack*.yaml.lock
 .envrc
 .direnv
-*.cabal
