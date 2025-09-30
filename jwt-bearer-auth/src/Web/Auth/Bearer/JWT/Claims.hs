@@ -6,6 +6,7 @@ module Web.Auth.Bearer.JWT.Claims
   , HasScp (..)
   , JWTClaims (..)
   , ScpClaims (..)
+  , claimsExtra
   ) where
 
 import Prelude

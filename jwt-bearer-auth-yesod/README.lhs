@@ -92,7 +92,8 @@ module Main ( main ) where
 import Prelude
 
 import Control.Lens
-import Web.Auth.Bearer.JWT.Claims
+import GHC.Generics
+import Web.Auth.Bearer.JWT.Claims hiding (ScpClaims (..))
 import Web.Auth.Bearer.JWT.Yesod
 import Yesod.Core
 ```
@@ -197,30 +198,14 @@ signed. Here is an example of a type that's already provided for you in
 `Web.Auth.Bearer.JWT.Claims`, that adds a single extra claim called `scp` that's a list of strings.
 Use this as a template if you need to implement your own, additional claims.
 
-```haskell ignore
+```haskell
 data ScpClaims = ScpClaims
   { scp :: [String]
   }
-  deriving stock (Eq, Show)
+  deriving stock (Eq, Generic, Show)
   -- derive anyclass, not derive newtype! it needs to serialize as an Object with the field name
   -- i.e. {"scp": ["scp1", "scp2"]}
   deriving anyclass (FromJSON, ToJSON)
-
--- (optional) some lenses you can use to peek at the claims.
-
-class HasScp a where
-  claimScp :: Lens' a [String]
-
-instance HasScp ScpClaims where
-  claimScp = lens scp (const ScpClaims)
-
-instance HasScp extra => HasScp (JWTClaims extra) where
-  claimScp = claimsExtra . claimScp
-
--- you can also use the lenses from `HasClaimsSet`:
-
-getAudience :: JWTClaims ScpClaims -> [String]
-getAudience = claimAud
 ```
 
 Now we're ready to authorize requests based on the `scp` claim!
@@ -251,7 +236,7 @@ instance Yesod App2 where
   isAuthorized :: Route App2 -> Bool -> HandlerFor App2 AuthResult
   isAuthorized _route isWrite = isAuthorizedJWKCache $ \(jwt :: JWTClaims ScpClaims) ->
     let requiredScp = if isWrite then "myapp:write" else "myapp:read"
-     in if requiredScp `elem` jwt ^. claimScp
+     in if requiredScp `elem` scp (jwt ^. claimsExtra)
             then pure Authorized
             else pure $ Unauthorized "bad token"
 
