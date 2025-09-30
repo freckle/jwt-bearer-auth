@@ -4,6 +4,7 @@ module Web.Auth.Bearer.JWT.Yesod.Types
   ( JWKCacheSettings (..)
   , HasJWKCacheSettings (..)
   , JWKCacheWithSettings (..)
+  , emptyJWKCacheSettings
   , settingsExpectedAudience
   , settingsTokenServerUrl
   , settingsRefreshDelayMicros
@@ -30,6 +31,9 @@ data JWKCacheSettings = JWKCacheSettings
   -- ^ Token server URL for fetching JWKs
   }
   deriving stock (Eq, Show)
+
+emptyJWKCacheSettings :: JWKCacheSettings
+emptyJWKCacheSettings = JWKCacheSettings "" 0 ""
 
 settingsTokenServerUrl :: Lens' JWKCacheSettings TokenServerUrl
 settingsTokenServerUrl = lens jwkCacheTokenServerUrl $ \s url -> s {jwkCacheTokenServerUrl = url}
