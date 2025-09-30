@@ -199,7 +199,7 @@ signed. Here is an example of a type that's already provided for you in
 Use this as a template if you need to implement your own, additional claims.
 
 ```haskell
-data ScpClaims = ScpClaims
+newtype ScpClaims = ScpClaims
   { scp :: [String]
   }
   deriving stock (Eq, Generic, Show)
