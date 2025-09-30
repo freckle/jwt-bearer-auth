@@ -83,61 +83,74 @@ First, some imports.
 
 ```haskell
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# OPTIONS_GHC -pgmL markdown-unlit #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# OPTIONS_GHC -Wno-unused-packages #-}
 module Main ( main ) where
 
 import Prelude
 
 import Control.Lens
-import Control.Monad (when, (<=<))
-import Crypto.JWT
-import Data.Aeson
-import Data.Aeson.KeyMap
-import Network.Wai.Handler.Warp (defaultSettings, runSettings)
-import System.Environment (getArgs)
-import Web.Auth.Bearer.JWT.Cache
+import GHC.Generics hiding (to)
+import Web.Auth.Bearer.JWT.Claims hiding (ScpClaims (..))
 import Web.Auth.Bearer.JWT.Yesod
-import Web.Auth.Bearer.JWT.Yesod.Lens
 import Yesod.Core
 ```
 
+<!--
+```haskell
+import Control.Monad (when, (<=<))
+import Network.Wai.Handler.Warp (defaultSettings, runSettings)
+import System.Environment (getArgs)
+```
+-->
 
 First, your `App` type (or, what Yesod also calls `site`) will need to be able to
-have a way to access the JWKStore itself. This is done by providing a `lens`.
+have a way to access the `CacheWithSettings`. That's your source of public keys with which to verify
+bearer tokens, including any settings required to set it up.
+
+This is done by providing a `lens`.
 
 ```haskell
-data App = App { appJWKCache :: JWKCache }
+data App = App
+  { appJWKCache :: JWKCacheWithSettings
+  }
 
-instance HasJWKStore JWKCache App where
-  jwkStoreL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
+instance HasJWKCacheSettings App where
+  jwkCacheSettingsL = lens appJWKCache $ \app cache -> app {appJWKCache = cache}
 ```
 
 `JWKCache`, provided by this library, provides the feature that I described in the Concepts section,
 where (given a URL and a refresh time in microseconds) it loads up the public keys on a background
-thread. Other options for a "JWK Store" include a `TokenServerUrl`, which will load the keys every
-time you try to use it instead of in the background, or even a static `JWK` if you want to just have
-a static one that's hardcoded. `JWKCache` is the recommended choice for production applications.
+thread.
 
 You will, of course, also need to construct the cache while constructing your application. This is
 done with a CPS function to ensure that the cache thread is properly shut down at the end of
-everything (you may already be using a similar pattern for the app as a whole):
+everything (you may already be using a similar pattern for the app as a whole). You also have to
+provide an expected "audience" value. The **audience** identifies the service who *should* be
+consuming this token for authorization—you don't want to let someone do things using a token that
+wasn't even meant for you. You could, technically, check this yourself when you are checking the
+other fields in the token; but this one is Mandatory (by RFC), so it's treated specially. Let's
+assume in this case that _your app_ is `"elrond"`, and the token is giving `"frodobaggins"`
+permission to make requests of you.
 
 ```haskell
 loadApp :: (App -> IO ()) -> IO ()
 loadApp f = do
    -- (this is where you'd load all the other parts of your app also)
-   withJWKCache myRefreshMicros myServerUrl $ \jwkCache ->
-      f App{appJWKCache = jwkCache}
+   withCacheSettings myJWTSettings $ \cacheStore ->
+      f App{appJWKCache = cacheStore}
 
       where
+        -- ten minutes
         myRefreshMicros = 10 * 60 * 10 ^ (6 :: Int)
-        myServerUrl = "https://token-auth-tokens.freckletest.com"
+        myServerUrl = "https://tokens.myapp.com"
+        myJWTSettings = JWKCacheSettings
+          { jwkCacheExpectedAudience = "elrond"
+          , jwkCacheRefreshDelayMicros = myRefreshMicros
+          , jwkCacheTokenServerUrl = myServerUrl
+          }
 ```
 
 When you define the `Yesod` typeclass instance, you can use one of the
@@ -159,7 +172,7 @@ instance Yesod App where
   -- ...(other methods)
 
   isAuthorized :: Route App -> Bool -> HandlerFor App AuthResult
-  isAuthorized _route _isWrite = isAuthorizedJWKCache $ \(_ :: ClaimsSet) ->
+  isAuthorized _route _isWrite = isAuthorizedJWKCache $ \(_jwt :: JWTClaims ()) ->
       pure Authorized
 ```
 
@@ -174,41 +187,25 @@ decoded payload for you to look at and decide if the request is allowed.
 Now, you will almost certainly want to actually inspect the fields on the payload when making your
 decision. The `ClaimsSet` type in the `jose` library ONLY supports the claims that are required by
 the RFC for JWTs, but you can extend them with more fields. The supported way to do that is by
-providing your own data type that contains a `ClaimsSet` and provide a lens to focus on that
-`ClaimsSet`. For an example, see `Web.Auth.Bearer.JWT.Claims`. You will also need a `FromJSON`
-instance (you would also need a `ToJSON` instance if you were doing the signing, but we're only
-going to be validating ones that have already been signed.)
+providing your own data type that implements `HasClaimsSet`, providing a lens to focus on that
+`ClaimsSet`. Anything that has an instance of `HasClaimsSet` also has lenses for each individual
+claim: `claimAud`, `claimIss`, `claimSub`, etc. This library provides a general wrapper for this,
+`JWTClaims extraClaims`, where `extraClaims` is whatever claims you want in your app.
+
+Your `extraClaims` needs a `FromJSON` instance; you would also need a `ToJSON` instance if
+you were doing the signing, but we're only going to be validating ones that have already been
+signed. Here is an example of a type that's already provided for you in
+`Web.Auth.Bearer.JWT.Claims`, that adds a single extra claim called `scp` that's a list of strings.
+Use this as a template if you need to implement your own, additional claims.
 
 ```haskell
-data ClaimsWithScope a = ClaimsWithScope [String] a
-  deriving stock (Show, Eq)
-
-instance FromJSON a => FromJSON (ClaimsWithScope a) where
-  parseJSON = withObject "ClaimsWithScope" $ \v ->
-    ClaimsWithScope
-      <$> (concat <$> v .:? "scp")
-      <*> parseJSON (Object (delete "scp" v))
-
-instance ToJSON a => ToJSON (ClaimsWithScope a) where
-  toJSON (ClaimsWithScope claims scp) =
-    let ~(Object o) = toJSON claims
-     in Object $ insert "scp" (toJSON scp) o
-
-instance HasClaimsSet a => HasClaimsSet (ClaimsWithScope a) where
-  claimsSet = myClaimsSet . claimsSet
-    where
-      myClaimsSet = lens getter setter
-      getter (ClaimsWithScope _ claims) = claims
-      setter (ClaimsWithScope scp _) claims = ClaimsWithScope scp claims
-
-class HasScp a where
-  claimScp :: Lens' a [String]
-
-instance HasScp (ClaimsWithScope a) where
-  claimScp = lens getter setter
-    where
-      getter (ClaimsWithScope scp _) = scp
-      setter (ClaimsWithScope _ claims) scp = ClaimsWithScope scp claims
+newtype ScpClaims = ScpClaims
+  { scp :: [String]
+  }
+  deriving stock (Eq, Generic, Show)
+  -- derive anyclass, not derive newtype! it needs to serialize as an Object with the field name
+  -- i.e. {"scp": ["scp1", "scp2"]}
+  deriving anyclass (FromJSON, ToJSON)
 ```
 
 Now we're ready to authorize requests based on the `scp` claim!
@@ -220,8 +217,8 @@ newtype App2 = App2 { unApp2 :: App }
 appIso :: Iso' App2 App
 appIso = iso unApp2 App2
 
-instance HasJWKStore JWKCache App2 where
-  jwkStoreL = appIso . jwkStoreL
+instance HasJWKCacheSettings App2 where
+  jwkCacheSettingsL = appIso . jwkCacheSettingsL
 ```
 
 <!--
@@ -237,9 +234,9 @@ instance YesodDispatch App2 where
 ```haskell
 instance Yesod App2 where
   isAuthorized :: Route App2 -> Bool -> HandlerFor App2 AuthResult
-  isAuthorized _route isWrite = isAuthorizedJWKCache $ \(jwt :: ClaimsWithScope ClaimsSet) ->
+  isAuthorized _route isWrite = isAuthorizedJWKCache $ \(jwt :: JWTClaims ScpClaims) ->
     let requiredScp = if isWrite then "myapp:write" else "myapp:read"
-     in if requiredScp `elem` jwt ^. claimScp
+     in if requiredScp `elem` jwt ^. claimsExtra . to scp
             then pure Authorized
             else pure $ Unauthorized "bad token"
 

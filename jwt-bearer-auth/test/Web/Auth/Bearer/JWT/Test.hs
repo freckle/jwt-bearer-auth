@@ -1,98 +1,146 @@
 module Web.Auth.Bearer.JWT.Test
-  ( testJWKCache
-  , pureJWKCache
-  , TestJWK (..)
-  , TestJWKSet (..)
-  , makeSignedTestJWT
-  , makeTestClaimSet
+  ( AuthError
+  , TestData (..)
+  , encodeToStrict
+  , generateAudience
+  , generateClaimsSet
+  , generateJWK
+  , generateJWKSet
+  , generateTestData
+  , makeStaticTestCache
+  , runJOSENoLogging
+  , signTestJWT
+  , verifyTestTokenClaims
   ) where
-
--- import Web.Auth.Bearer.JWT
 
 import Prelude
 
 import Control.Concurrent (threadDelay)
 import Control.Lens hiding (elements)
-import Control.Monad.Time
+import Control.Monad (replicateM)
+import Control.Monad.Logger.Aeson (NoLoggingT (..))
 import Crypto.JOSE
 import Crypto.JWT
-import Data.Cache.Polling hiding (currentTime)
+import qualified Data.ByteString as BS
+import Data.String (fromString)
 import qualified Data.Text as T
-import Data.Time (addUTCTime, secondsToNominalDiffTime)
+import Data.Time (addUTCTime, getCurrentTime, secondsToNominalDiffTime)
+import System.Random (randomIO)
 import Test.QuickCheck
-import UnliftIO (liftIO)
-import Web.Auth.Bearer.JWT.Internal.Cache
+import UnliftIO (MonadUnliftIO, liftIO)
+import Web.Auth.Bearer.JWT
+import Web.Auth.Bearer.JWT.Cache
 
-testJWKCache
-  :: MonadCache m
-  => CacheOptions JWKSet
-  -> m JWKSet
-  -> m JWKCache
-testJWKCache opts mjwkset = JWKCache <$> newPollingCache opts mjwkset
+-- * Type Definitions
 
-pureJWKCache
-  :: MonadCache m
+type AuthError a = JWKCacheError (BearerAuthError a)
+
+data TestData = TestData
+  { testJWK :: JWK
+  , testClaims :: ClaimsSet
+  , testSignedJWT :: SignedJWT
+  , testAudience :: String
+  }
+  deriving stock (Eq, Show)
+
+newtype TestAudience = TestAudience {unTestAudience :: String}
+  deriving stock (Eq, Show)
+
+instance Arbitrary TestAudience where
+  arbitrary = do
+    domain <- elements ["example.com", "test.org", "api.service"]
+    subdomain <- elements ["", "app.", "auth.", "service."]
+    pure $ TestAudience $ "https://" <> subdomain <> domain
+
+-- * Cache Utilities
+
+makeStaticTestCache
+  :: MonadUnliftIO m
   => JWKSet
   -> m JWKCache
-pureJWKCache jwks =
-  do
-    cache <-
-      testJWKCache
-        (basicOptions (DelayForMicroseconds (secondsToMicros 10)) Ignore)
-        (pure jwks)
-    -- unfortunately the first load to the cache is asynchronous, doesn't happen
-    -- until the background thread starts. So I guess we just gotta wait
-    liftIO $ threadDelay (millisToMicros 10)
-    pure cache
- where
-  secondsToMicros secs = secs * 10 ^ (6 :: Int)
-  millisToMicros millis = millis * 10 ^ (3 :: Int)
+makeStaticTestCache jwks = do
+  cache <- staticJWKCache jwks
+  -- unfortunately the first load to the cache is asynchronous, doesn't happen
+  -- until the background thread starts. So I guess we just gotta wait
+  liftIO $ threadDelay (10 * 1000)
+  pure cache
 
-newtype TestJWK = TestJWK {unTestJWK :: JWK}
-  deriving stock (Eq, Show)
+-- * JOSE Utilities
 
-newtype TestJWKSet = TestJWKSet {unTestJWKSet :: JWKSet}
-  deriving stock (Eq, Show)
+runJOSENoLogging :: NoLoggingT (JOSE e m) a -> m (Either e a)
+runJOSENoLogging = runJOSE . runNoLoggingT
 
-instance Arbitrary TestJWK where
-  arbitrary = do
-    drg <- drgNewSeed . seedFromInteger <$> arbitrary
-    let (baseJWK, _) = withDRG drg $ genJWK (RSAGenParam 256)
-    newKid <- T.pack <$> resize 32 arbitraryHex
-    pure $ TestJWK $ jwkWithKid baseJWK newKid
-   where
-    jwkWithKid :: JWK -> T.Text -> JWK
-    jwkWithKid baseJWK kidText =
-      baseJWK
-        & jwkUse ?~ Sig
-        & jwkKid ?~ kidText
-        & jwkAlg ?~ JWSAlg RS256
-    arbitraryHex :: Gen String
-    arbitraryHex = sized $ \size ->
-      vectorOf size $ elements hexDigits
-    hexDigits :: [Char]
-    hexDigits = ['0' .. '9'] ++ ['a' .. 'f']
+encodeToStrict :: SignedJWT -> BS.ByteString
+encodeToStrict = BS.toStrict . encodeCompact
 
-instance Arbitrary TestJWKSet where
-  arbitrary = sized $ \size ->
-    fmap (TestJWKSet . JWKSet . fmap unTestJWK) (vectorOf size arbitrary)
+-- * IO-based Generation Functions
 
-makeSignedTestJWT
-  :: (AsError e, MonadRandom m, MonadTime m)
-  => JWK
-  -> m (Either e SignedJWT)
-makeSignedTestJWT theJWK = runJOSE $ do
-  theHeader <- makeJWSHeader theJWK
-  theClaims <- makeTestClaimSet
-  signClaims theJWK theHeader theClaims
+generateJWK :: IO JWK
+generateJWK = do
+  baseJWK <- genJWK (RSAGenParam 256)
+  keyId <- ("test-key-" <>) . T.pack . show <$> randomIO @Int
+  pure
+    $ baseJWK
+      & jwkUse ?~ Sig
+      & jwkKid ?~ keyId
+      & jwkAlg ?~ JWSAlg RS256
 
-makeTestClaimSet :: MonadTime m => m ClaimsSet
-makeTestClaimSet = do
-  issuedAt <- currentTime
-  let expiry = addUTCTime (secondsToNominalDiffTime 3600) issuedAt
+generateAudience :: IO String
+generateAudience = unTestAudience <$> generate arbitrary
+
+generateClaimsSet :: String -> IO ClaimsSet
+generateClaimsSet audience = do
+  now <- getCurrentTime
+  let expiry = addUTCTime (secondsToNominalDiffTime 3600) now
   pure
     $ emptyClaimsSet
-      & claimIat ?~ NumericDate issuedAt
+      & claimIat ?~ NumericDate now
       & claimIss ?~ "https://jwt-unit-test-issuer.freckle.com"
       & claimExp ?~ NumericDate expiry
       & claimSub ?~ "alice"
+      & claimAud ?~ Audience [fromString audience]
+
+generateJWKSet :: IO JWKSet
+generateJWKSet = do
+  count <- generate arbitrary
+  JWKSet <$> replicateM count generateJWK
+
+signTestJWT :: MonadRandom m => JWK -> ClaimsSet -> m SignedJWT
+signTestJWT theJWK theClaims = do
+  result <- runJOSE doSign
+  case result of
+    Right jwt -> pure jwt
+    Left _ ->
+      error "signTestJWT: Failed to sign test JWT - this should not happen in tests"
+ where
+  doSign :: MonadRandom m => JOSE JWTError m SignedJWT
+  doSign = do
+    theHeader <- makeJWSHeader theJWK
+    signClaims theJWK theHeader theClaims
+
+verifyTestTokenClaims
+  :: VerificationKeyStore
+       (NoLoggingT (JOSE (AuthError JWTError) IO))
+       (JWSHeader RequiredProtection)
+       ClaimsSet
+       store
+  => store
+  -> String
+  -> BS.ByteString
+  -> IO (Either (AuthError JWTError) ClaimsSet)
+verifyTestTokenClaims store audience tokenBytes =
+  runJOSENoLogging $ verifyTokenClaims store audience tokenBytes
+
+generateTestData :: IO TestData
+generateTestData = do
+  theJWK <- generateJWK
+  audience <- generateAudience
+  theClaims <- generateClaimsSet audience
+  signedJWT <- signTestJWT theJWK theClaims
+  pure
+    $ TestData
+      { testJWK = theJWK
+      , testClaims = theClaims
+      , testSignedJWT = signedJWT
+      , testAudience = audience
+      }

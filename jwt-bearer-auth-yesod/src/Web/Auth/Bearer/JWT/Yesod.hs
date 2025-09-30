@@ -1,4 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DerivingVia #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -7,9 +6,11 @@
 module Web.Auth.Bearer.JWT.Yesod
   ( authorizeWithJWT
   , isAuthorizedJWKCache
-  , isAuthorizedJWKDefault
   , handleCacheErrors
   , handleDefaultErrors
+  , JWKCache
+  , withCacheSettings
+  , module Web.Auth.Bearer.JWT.Yesod.Types
   ) where
 
 import Prelude
@@ -18,18 +19,15 @@ import Control.Lens
 import Control.Monad (when)
 import Control.Monad.Catch (throwM)
 import Control.Monad.Error.Lens (throwing_)
-import Control.Monad.Except (ExceptT, runExceptT)
+import Control.Monad.Except (runExceptT)
 import Control.Monad.Reader (ReaderT (..))
 import Control.Monad.Time (MonadTime)
-import Crypto.JOSE
-  ( JWSHeader
-  , RequiredProtection
-  , VerificationKeyStore
-  )
 import Network.Wai.Lens
 import Web.Auth.Bearer.JWT
-import Web.Auth.Bearer.JWT.Cache
-import Web.Auth.Bearer.JWT.Yesod.Lens
+import Web.Auth.Bearer.JWT.Cache hiding (withJWKCache)
+import qualified Web.Auth.Bearer.JWT.Cache as JWKCache
+import Web.Auth.Bearer.JWT.Claims
+import Web.Auth.Bearer.JWT.Yesod.Types
 import Yesod.Core
 import Yesod.Core.Types (HandlerData, HandlerFor (..))
 import Yesod.Core.Types.Lens
@@ -37,32 +35,31 @@ import Yesod.Core.Types.Lens
 -- | JWT-based authorization for Yesod applications.
 -- Extracts bearer token from request, verifies it using the app's JWK store.
 authorizeWithJWT
-  :: forall e store jwtType site
+  :: forall e extraClaims site
    . ( AsBearerAuthError e
      , AsError e
+     , AsJWKCacheError e
      , AsJWTError e
-     , FromJSON jwtType
-     , HasClaimsSet jwtType
-     , HasJWKStore store site
-     , VerificationKeyStore
-         (ExceptT e (HandlerFor site))
-         (JWSHeader RequiredProtection)
-         jwtType
-         store
+     , FromJSON extraClaims
+     , HasJWKCacheSettings site
      )
-  => (Either e jwtType -> HandlerFor site AuthResult)
+  => (Either e (JWTClaims extraClaims) -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 authorizeWithJWT authFunc = do
-  jwkStore <- view (handlerJWKStoreL @store)
-  req <- view (handlerRequestL . reqWaiRequestL)
-  eJWT <-
-    runExceptT
-      $ maybe
-        (throwing_ _NoBearerToken)
-        (verifyTokenClaims jwkStore)
-        (preview (authorizationHeaderL . _Just . bearerTokenP) req)
-  authFunc eJWT
+  (JWKCacheWithSettings settings jwkCache) <-
+    view $ handlerEnvL . rheSiteL . jwkCacheSettingsL
+  req <- view $ handlerRequestL . reqWaiRequestL
+  case settings ^. settingsExpectedAudience of
+    Nothing -> pure $ Unauthorized "bearer auth is disabled"
+    Just aud -> do
+      eJWT <-
+        runExceptT
+          $ maybe
+            (throwing_ _NoBearerToken)
+            (verifyTokenClaims jwkCache aud)
+            (preview (authorizationHeaderL . _Just . bearerTokenP) req)
+      authFunc eJWT
 
 handleCacheErrors
   :: ( AsBearerAuthError e
@@ -86,35 +83,16 @@ type AuthError = BearerAuthError JWTError
 type CacheAuthError = JWKCacheError AuthError
 
 isAuthorizedJWKCache
-  :: forall jwtType site
-   . ( FromJSON jwtType
-     , HasClaimsSet jwtType
-     , HasJWKStore JWKCache site
+  :: forall extraClaims site
+   . ( FromJSON extraClaims
+     , HasJWKCacheSettings site
      )
-  => (jwtType -> HandlerFor site AuthResult)
+  => (JWTClaims extraClaims -> HandlerFor site AuthResult)
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
-isAuthorizedJWKCache f =
-  authorizeWithJWT @CacheAuthError @JWKCache @jwtType @site
+isAuthorizedJWKCache f = do
+  authorizeWithJWT @CacheAuthError
     (either handleCacheErrors f)
-
-isAuthorizedJWKDefault
-  :: forall jwtType store site
-   . ( FromJSON jwtType
-     , HasClaimsSet jwtType
-     , HasJWKStore store site
-     , VerificationKeyStore
-         (ExceptT AuthError (HandlerFor site))
-         (JWSHeader RequiredProtection)
-         jwtType
-         store
-     )
-  => (jwtType -> HandlerFor site AuthResult)
-  -- ^ Authorization function that handles JWT verification result
-  -> HandlerFor site AuthResult
-isAuthorizedJWKDefault f =
-  authorizeWithJWT @AuthError @store @jwtType @site
-    (either handleDefaultErrors f)
 
 -- | orphan instance to make runExceptT work.
 --   if '(@HandlerFor@ site)' was a monad transformer, then it would
@@ -124,3 +102,17 @@ deriving via
   (ReaderT (HandlerData site site) IO)
   instance
     MonadTime (HandlerFor site)
+
+withCacheSettings
+  :: MonadUnliftIO m
+  => JWKCacheSettings
+  -> (JWKCacheWithSettings -> m a)
+  -> m a
+withCacheSettings settings f =
+  let getCache =
+        case settings of
+          JWKCacheSettings {..} ->
+            JWKCache.newJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl
+          JWKCacheDisabled ->
+            emptyJWKCache
+  in  withJWKCacheFrom getCache $ f . JWKCacheWithSettings settings

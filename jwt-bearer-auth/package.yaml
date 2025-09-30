@@ -21,8 +21,6 @@ dependencies:
   - jose >= 0.12
   - lens
   - monad-logger-aeson
-  - monad-time
-  - polling-cache
   - text
   - unliftio
 
@@ -84,7 +82,9 @@ library:
   dependencies:
     - aeson
     - http-conduit
+    - monad-time
     - mtl
+    - polling-cache
 
 tests:
   jwt-bearer-auth-test:
@@ -98,4 +98,5 @@ tests:
       - hspec
       - jwt-bearer-auth
       - QuickCheck
+      - random
       - time

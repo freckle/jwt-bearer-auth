@@ -14,6 +14,7 @@ module Web.Auth.Bearer.JWT.Internal
   , _WrapBearerAuthError
   , verifyTokenClaims
   , fetchJWKs
+  , jwtValidationSettingsWithAudience
   ) where
 
 import Prelude
@@ -28,14 +29,15 @@ import Crypto.JWT
 import Data.Aeson (FromJSON)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
-import Data.String (IsString)
+import Data.String (IsString, fromString)
 import Data.Text.Encoding (decodeUtf8)
 import GHC.Generics
 import Network.HTTP.Simple
 
--- this is insecure because of the lack of audience check
-insecureJWTValidationSettings :: JWTValidationSettings
-insecureJWTValidationSettings = defaultJWTValidationSettings $ const True
+-- | Create JWT validation settings that check for a specific audience
+jwtValidationSettingsWithAudience :: String -> JWTValidationSettings
+jwtValidationSettingsWithAudience expectedAudience =
+  defaultJWTValidationSettings (== fromString expectedAudience)
 
 -- | Verify the cryptographic signature of a JWT, using a provided JWK store.
 verifyTokenClaims
@@ -55,16 +57,18 @@ verifyTokenClaims
      )
   => store
   -- ^ the JWK store
+  -> String
+  -- ^ the expected audience
   -> BS.ByteString
   -- ^ the token
   -> m jwt
-verifyTokenClaims store token = do
+verifyTokenClaims store expectedAudience token = do
   -- TODO don't actually log the token lol
   logInfo $ "decoding bearer token" :# ["token" .= decodeUtf8 token]
   jwt :: SignedJWTWithHeader JWSHeader <- decodeCompact $ BSL.fromStrict token
   logInfo $ "decoded bearer token" :# ["jwt" .= jwt]
   verifyJWT
-    insecureJWTValidationSettings
+    (jwtValidationSettingsWithAudience expectedAudience)
     store
     jwt
 
@@ -107,8 +111,6 @@ instance
     matchesKid :: JWK -> Bool
     matchesKid key = h ^? kid . _Just . param == key ^. jwkKid
 
--- Fetch JWKs from the token server
--- in reality, this should be cached
 fetchJWKs
   :: MonadIO m
   => TokenServerUrl
