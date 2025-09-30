@@ -50,13 +50,16 @@ authorizeWithJWT authFunc = do
   (JWKCacheWithSettings settings jwkCache) <-
     view $ handlerEnvL . rheSiteL . jwkCacheSettingsL
   req <- view $ handlerRequestL . reqWaiRequestL
-  eJWT <-
-    runExceptT
-      $ maybe
-        (throwing_ _NoBearerToken)
-        (verifyTokenClaims jwkCache (settings ^. settingsExpectedAudience))
-        (preview (authorizationHeaderL . _Just . bearerTokenP) req)
-  authFunc eJWT
+  case settings ^. settingsExpectedAudience of
+    Nothing -> pure $ Unauthorized "bearer auth is disabled"
+    Just aud -> do
+      eJWT <-
+        runExceptT
+          $ maybe
+            (throwing_ _NoBearerToken)
+            (verifyTokenClaims jwkCache aud)
+            (preview (authorizationHeaderL . _Just . bearerTokenP) req)
+      authFunc eJWT
 
 handleCacheErrors
   :: ( AsBearerAuthError e
@@ -106,7 +109,10 @@ withCacheSettings
   -> (JWKCacheWithSettings -> m a)
   -> m a
 withCacheSettings settings f =
-  JWKCache.withJWKCache
-    (jwkCacheRefreshDelayMicros settings)
-    (jwkCacheTokenServerUrl settings)
-    $ f . JWKCacheWithSettings settings
+  let getCache =
+        case settings of
+          JWKCacheSettings{..} ->
+            JWKCache.newJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl
+          JWKCacheDisabled ->
+            emptyJWKCache
+  in withJWKCacheFrom getCache $ f . JWKCacheWithSettings settings
