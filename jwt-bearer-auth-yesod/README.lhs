@@ -92,7 +92,7 @@ module Main ( main ) where
 import Prelude
 
 import Control.Lens
-import GHC.Generics
+import GHC.Generics hiding (to)
 import Web.Auth.Bearer.JWT.Claims hiding (ScpClaims (..))
 import Web.Auth.Bearer.JWT.Yesod
 import Yesod.Core
@@ -236,7 +236,7 @@ instance Yesod App2 where
   isAuthorized :: Route App2 -> Bool -> HandlerFor App2 AuthResult
   isAuthorized _route isWrite = isAuthorizedJWKCache $ \(jwt :: JWTClaims ScpClaims) ->
     let requiredScp = if isWrite then "myapp:write" else "myapp:read"
-     in if requiredScp `elem` scp (jwt ^. claimsExtra)
+     in if requiredScp `elem` jwt ^. claimsExtra . to scp
             then pure Authorized
             else pure $ Unauthorized "bad token"
 
