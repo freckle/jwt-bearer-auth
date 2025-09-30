@@ -111,8 +111,8 @@ withCacheSettings
 withCacheSettings settings f =
   let getCache =
         case settings of
-          JWKCacheSettings{..} ->
+          JWKCacheSettings {..} ->
             JWKCache.newJWKCache jwkCacheRefreshDelayMicros jwkCacheTokenServerUrl
           JWKCacheDisabled ->
             emptyJWKCache
-  in withJWKCacheFrom getCache $ f . JWKCacheWithSettings settings
+  in  withJWKCacheFrom getCache $ f . JWKCacheWithSettings settings
