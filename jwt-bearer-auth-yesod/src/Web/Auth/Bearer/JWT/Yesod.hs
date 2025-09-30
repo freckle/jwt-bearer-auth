@@ -47,7 +47,7 @@ authorizeWithJWT
   -- ^ Authorization function that handles JWT verification result
   -> HandlerFor site AuthResult
 authorizeWithJWT authFunc = do
-  (CacheWithSettings settings jwkCache) <-
+  (JWKCacheWithSettings settings jwkCache) <-
     view $ handlerEnvL . rheSiteL . jwkCacheSettingsL
   req <- view $ handlerRequestL . reqWaiRequestL
   eJWT <-
@@ -103,10 +103,10 @@ deriving via
 withCacheSettings
   :: MonadUnliftIO m
   => JWKCacheSettings
-  -> (CacheWithSettings -> m a)
+  -> (JWKCacheWithSettings -> m a)
   -> m a
 withCacheSettings settings f =
   JWKCache.withJWKCache
     (jwkCacheRefreshDelayMicros settings)
     (jwkCacheTokenServerUrl settings)
-    $ f . CacheWithSettings settings
+    $ f . JWKCacheWithSettings settings

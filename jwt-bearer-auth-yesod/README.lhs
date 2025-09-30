@@ -119,7 +119,7 @@ This is done by providing a `lens`.
 
 ```haskell
 data App = App
-  { appJWKCache :: CacheWithSettings
+  { appJWKCache :: JWKCacheWithSettings
   }
 
 instance HasJWKCacheSettings App where

@@ -3,7 +3,7 @@
 module Web.Auth.Bearer.JWT.Yesod.Types
   ( JWKCacheSettings (..)
   , HasJWKCacheSettings (..)
-  , CacheWithSettings (..)
+  , JWKCacheWithSettings (..)
   , settingsExpectedAudience
   , settingsTokenServerUrl
   , settingsRefreshDelayMicros
@@ -15,7 +15,7 @@ import Control.Lens
 import Web.Auth.Bearer.JWT (TokenServerUrl)
 import Web.Auth.Bearer.JWT.Cache (JWKCache)
 
-data CacheWithSettings = CacheWithSettings
+data JWKCacheWithSettings = JWKCacheWithSettings
   { cacheSettings :: JWKCacheSettings
   , cache :: JWKCache
   }
@@ -42,4 +42,4 @@ settingsExpectedAudience = lens jwkCacheExpectedAudience $ \s aud -> s {jwkCache
 
 -- | Type class for extracting JWT Bearer auth settings from an application type
 class HasJWKCacheSettings a where
-  jwkCacheSettingsL :: Lens' a CacheWithSettings
+  jwkCacheSettingsL :: Lens' a JWKCacheWithSettings
