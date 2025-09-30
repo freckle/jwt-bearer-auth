@@ -81,12 +81,6 @@ Ok, let's write some code now.
 
 First, some imports.
 
-<!--
-```haskell
-{-# LANGUAGE CPP #-}
-```
--->
-
 ```haskell
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -203,15 +197,7 @@ signed. Here is an example of a type that's already provided for you in
 `Web.Auth.Bearer.JWT.Claims`, that adds a single extra claim called `scp` that's a list of strings.
 Use this as a template if you need to implement your own, additional claims.
 
-<!--
-the below example should show up in the README but NOT be compiled with the literate code.
-By using CPP instead of commenting out, it will still show up with the right syntax highlighting.
-```haskell
-#if 0
-```
--->
-
-```haskell
+```haskell ignore
 data ScpClaims = ScpClaims
   { scp :: [String]
   }
@@ -236,12 +222,6 @@ instance HasScp extra => HasScp (JWTClaims extra) where
 getAudience :: JWTClaims ScpClaims -> [String]
 getAudience = claimAud
 ```
-
-<!--
-```haskell
-#endif
-```
--->
 
 Now we're ready to authorize requests based on the `scp` claim!
 
