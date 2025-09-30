@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-partial-fields #-}
+
 -- |
 -- This module provides JWT Bearer authentication types for Yesod applications.
 module Web.Auth.Bearer.JWT.Yesod.Types
