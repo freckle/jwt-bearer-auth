@@ -4,13 +4,15 @@
 -- |
 -- This module provides JWT Bearer authentication for Yesod applications.
 module Web.Auth.Bearer.JWT.Yesod
-  ( authorizeWithJWT
-  , isAuthorizedJWKCache
+  ( AuthError
+  , CacheAuthError
+  , JWKCache
+  , authorizeWithJWT
   , handleCacheErrors
   , handleDefaultErrors
-  , JWKCache
-  , withCacheSettings
+  , isAuthorizedJWKCache
   , module Web.Auth.Bearer.JWT.Yesod.Types
+  , withCacheSettings
   ) where
 
 import Prelude
