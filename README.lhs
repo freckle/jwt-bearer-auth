@@ -1,5 +1,8 @@
 # jwt-bearer-auth
 
+ > [!WARNING]
+ > This repository is archived and no longer maintained.
+
 <!--
 [![Hackage](https://img.shields.io/hackage/v/jwt-bearer-auth.svg?style=flat)](https://hackage.haskell.org/package/jwt-bearer-auth)
 [![Stackage Nightly](http://stackage.org/package/jwt-bearer-auth/badge/nightly)](http://stackage.org/nightly/package/jwt-bearer-auth)
